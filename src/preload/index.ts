@@ -6,6 +6,7 @@ import type {
   Progress,
   QuizQuestion,
   SavedWord,
+  SectionPreview,
   Settings,
   Thought,
   WordExplanation
@@ -52,6 +53,12 @@ const api = {
   /** Start building this section's quiz now, so it's ready at the end of it. */
   prefetchQuiz: (title: string, text: string): Promise<void> =>
     ipcRenderer.invoke('ai:prefetchQuiz', title, text),
+
+  makePreview: (title: string, text: string): Promise<SectionPreview> =>
+    ipcRenderer.invoke('ai:preview', title, text),
+  /** Build the next section's preview while the current one is still being read. */
+  prefetchPreview: (title: string, text: string): Promise<void> =>
+    ipcRenderer.invoke('ai:prefetchPreview', title, text),
   explainWord: (word: string, sentence: string): Promise<WordExplanation> =>
     ipcRenderer.invoke('ai:explainWord', word, sentence),
 

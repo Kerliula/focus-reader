@@ -66,6 +66,14 @@ export interface QuizQuestion {
   whyWrong: string[]
 }
 
+/** Two lines of orientation shown before a section, so you know where it goes. */
+export interface SectionPreview {
+  /** The ground this section covers — never its conclusions. */
+  about: string
+  /** The one thing worth holding on to while reading it. */
+  watchFor: string
+}
+
 /** A word looked up mid-sentence, explained for a non-native reader. */
 export interface WordExplanation {
   /** Exactly what was clicked, so the popover can show it back. */
@@ -132,6 +140,8 @@ export interface Settings {
   quizAfterSection: boolean
   /** Use DeepSeek's thinking mode for the questions: sharper, far slower. */
   quizThinking: boolean
+  /** Two lines of orientation at the top of each new section. */
+  sectionPreview: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -148,5 +158,6 @@ export const DEFAULT_SETTINGS: Settings = {
   wpm: 220,
   apiKey: '',
   quizAfterSection: true,
-  quizThinking: true
+  quizThinking: true,
+  sectionPreview: true
 }

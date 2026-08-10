@@ -11,6 +11,7 @@ import type {
 } from '../../../shared/types'
 import { buildChapterUnits, countWords } from '../lib/units'
 import { ReaderUnit } from './ReaderUnit'
+import { SectionPreview } from './SectionPreview'
 import { WordPopover, type Lookup } from './WordPopover'
 import { SettingsPanel } from './SettingsPanel'
 import { ThoughtPanel } from './ThoughtPanel'
@@ -140,6 +141,10 @@ export function Reader({
 
   const atLastSection = chapterIndex >= doc.chapters.length - 1
   const quizEnabled = settings.quizAfterSection && aiReady
+  const previewEnabled = settings.sectionPreview && aiReady
+
+  // Hidden by hand for this section only; the next one gets a fresh chance.
+  const [previewHiddenFor, setPreviewHiddenFor] = useState<string | null>(null)
 
   const advanceSection = useCallback(() => {
     if (!atLastSection) goToChapter(chapterIndex + 1)
@@ -351,13 +356,35 @@ export function Reader({
    */
   const prefetchedFor = useRef<string | null>(null)
   useEffect(() => {
-    if (!quizEnabled || units.length === 0) return
+    if (units.length === 0) return
     if (prefetchedFor.current === chapter.id) return
     if (safeUnitIndex / units.length < 0.65) return
 
     prefetchedFor.current = chapter.id
-    void window.api.prefetchQuiz(chapter.title, chapterText)
-  }, [quizEnabled, safeUnitIndex, units.length, chapter.id, chapter.title, chapterText])
+    if (quizEnabled) void window.api.prefetchQuiz(chapter.title, chapterText)
+
+    // The next section's heads-up, built now so it's already there when you
+    // arrive — the whole point is that it costs you no waiting.
+    if (previewEnabled) {
+      const upcoming = doc.chapters[chapterIndex + 1]
+      if (upcoming) {
+        void window.api.prefetchPreview(
+          upcoming.title,
+          upcoming.blocks.map((b) => b.text).join('\n\n')
+        )
+      }
+    }
+  }, [
+    quizEnabled,
+    previewEnabled,
+    safeUnitIndex,
+    units.length,
+    chapter.id,
+    chapter.title,
+    chapterText,
+    doc,
+    chapterIndex
+  ])
 
   const handleQuizDone = useCallback(
     (result: { summary: string; score: number; total: number } | null) => {
@@ -491,6 +518,15 @@ export function Reader({
           }}
         >
           {!titleAppearsInText && <h1 className="page-chapter-title">{chapter.title}</h1>}
+
+          {previewEnabled && previewHiddenFor !== chapter.id && (
+            <SectionPreview
+              key={chapter.id}
+              chapterTitle={chapter.title}
+              text={chapterText}
+              onDismiss={() => setPreviewHiddenFor(chapter.id)}
+            />
+          )}
 
           {blocks.map((block) => {
             const Tag = (block.type === 'p'

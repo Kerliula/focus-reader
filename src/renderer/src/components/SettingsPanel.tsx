@@ -194,6 +194,17 @@ export function SettingsPanel({ settings, onChange, onClose }: Props): JSX.Eleme
             />
           </Row>
 
+          <Row
+            label="Two lines before each section"
+            hint="where it's going — never how it ends"
+          >
+            <input
+              type="checkbox"
+              checked={settings.sectionPreview}
+              onChange={(e) => set('sectionPreview', e.target.checked)}
+            />
+          </Row>
+
           <Row label="Quiz me at the end of each section" hint="then write it down">
             <input
               type="checkbox"

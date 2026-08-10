@@ -12,7 +12,14 @@ import type {
   Settings,
   Thought
 } from '../shared/types'
-import { aiAvailable, explainWord, makeQuiz, prefetchQuiz } from './ai'
+import {
+  aiAvailable,
+  explainWord,
+  makePreview,
+  makeQuiz,
+  prefetchPreview,
+  prefetchQuiz
+} from './ai'
 
 const isDev = !app.isPackaged
 
@@ -139,6 +146,11 @@ function registerIpc(): void {
   // Returns at once: the generation carries on in the background.
   ipcMain.handle('ai:prefetchQuiz', (_e, title: string, text: string) => {
     prefetchQuiz(title, text)
+  })
+
+  ipcMain.handle('ai:preview', (_e, title: string, text: string) => makePreview(title, text))
+  ipcMain.handle('ai:prefetchPreview', (_e, title: string, text: string) => {
+    prefetchPreview(title, text)
   })
   ipcMain.handle('ai:explainWord', (_e, word: string, sentence: string) =>
     explainWord(word, sentence)
