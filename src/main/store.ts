@@ -1,0 +1,185 @@
+import { app } from 'electron'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
+import type {
+  BookDoc,
+  BookMeta,
+  Note,
+  Progress,
+  SavedWord,
+  Settings,
+  Thought
+} from '../shared/types'
+import { DEFAULT_SETTINGS } from '../shared/types'
+
+const dataDir = (): string => app.getPath('userData')
+const cacheDir = (): string => path.join(dataDir(), 'parsed')
+
+async function readJson<T>(file: string, fallback: T): Promise<T> {
+  try {
+    const raw = await fs.readFile(path.join(dataDir(), file), 'utf-8')
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+async function writeJson(file: string, data: unknown): Promise<void> {
+  await fs.mkdir(dataDir(), { recursive: true })
+  const target = path.join(dataDir(), file)
+  // Write to a temp file first so a crash mid-write can't corrupt the store.
+  // The temp name is unique per write: two writers sharing one temp path can
+  // interleave and rename a half-written file into place.
+  const tmp = `${target}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`
+  try {
+    await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')
+    await fs.rename(tmp, target)
+  } catch (e) {
+    await fs.rm(tmp, { force: true })
+    throw e
+  }
+}
+
+/**
+ * Read-modify-write is not atomic on its own: two overlapping updates would
+ * both read the same starting state and the later write would drop the
+ * earlier one's changes. Updates to a given file are queued instead.
+ */
+const queues = new Map<string, Promise<unknown>>()
+
+function update<T, R>(file: string, fallback: T, mutate: (current: T) => [T, R]): Promise<R> {
+  const run = async (): Promise<R> => {
+    const current = await readJson<T>(file, fallback)
+    const [next, result] = mutate(current)
+    await writeJson(file, next)
+    return result
+  }
+
+  const chained = (queues.get(file) ?? Promise.resolve()).then(run, run)
+  // Keep the chain alive even if one update fails.
+  queues.set(
+    file,
+    chained.catch(() => undefined)
+  )
+  return chained
+}
+
+export const store = {
+  async getLibrary(): Promise<BookMeta[]> {
+    return readJson<BookMeta[]>('library.json', [])
+  },
+
+  async upsertBook(meta: BookMeta): Promise<BookMeta[]> {
+    return update<BookMeta[], BookMeta[]>('library.json', [], (library) => {
+      const next = library.filter((b) => b.id !== meta.id)
+      next.unshift(meta)
+      return [next, next]
+    })
+  },
+
+  async removeBook(id: string): Promise<BookMeta[]> {
+    const library = await update<BookMeta[], BookMeta[]>('library.json', [], (current) => {
+      const next = current.filter((b) => b.id !== id)
+      return [next, next]
+    })
+
+    await update<Record<string, Progress>, void>('progress.json', {}, (all) => {
+      delete all[id]
+      return [all, undefined]
+    })
+
+    await fs.rm(path.join(cacheDir(), `${id}.json`), { force: true })
+    return library
+  },
+
+  async getProgress(id: string): Promise<Progress | null> {
+    const all = await readJson<Record<string, Progress>>('progress.json', {})
+    return all[id] ?? null
+  },
+
+  async getAllProgress(): Promise<Record<string, Progress>> {
+    return readJson<Record<string, Progress>>('progress.json', {})
+  },
+
+  async saveProgress(id: string, progress: Progress): Promise<void> {
+    await update<Record<string, Progress>, void>('progress.json', {}, (all) => {
+      all[id] = progress
+      return [all, undefined]
+    })
+  },
+
+  async getThoughts(): Promise<Thought[]> {
+    return readJson<Thought[]>('thoughts.json', [])
+  },
+
+  async saveThoughts(thoughts: Thought[]): Promise<void> {
+    await update<Thought[], void>('thoughts.json', [], () => [thoughts, undefined])
+  },
+
+  async getNotes(): Promise<Note[]> {
+    return readJson<Note[]>('notes.json', [])
+  },
+
+  async addNote(note: Note): Promise<Note[]> {
+    return update<Note[], Note[]>('notes.json', [], (notes) => {
+      const next = [note, ...notes]
+      return [next, next]
+    })
+  },
+
+  async deleteNote(id: string): Promise<Note[]> {
+    return update<Note[], Note[]>('notes.json', [], (notes) => {
+      const next = notes.filter((n) => n.id !== id)
+      return [next, next]
+    })
+  },
+
+  async getWords(): Promise<SavedWord[]> {
+    return readJson<SavedWord[]>('words.json', [])
+  },
+
+  /**
+   * Meeting a word again in a different sentence is worth its own entry — that
+   * second sense is usually the one that was confusing. Saving the *same*
+   * encounter twice is not.
+   */
+  async addWord(word: SavedWord): Promise<SavedWord[]> {
+    const same = (a: SavedWord, b: SavedWord): boolean =>
+      a.lemma.toLowerCase() === b.lemma.toLowerCase() && a.sentence === b.sentence
+
+    return update<SavedWord[], SavedWord[]>('words.json', [], (words) => {
+      const next = [word, ...words.filter((w) => !same(w, word))]
+      return [next, next]
+    })
+  },
+
+  async deleteWord(id: string): Promise<SavedWord[]> {
+    return update<SavedWord[], SavedWord[]>('words.json', [], (words) => {
+      const next = words.filter((w) => w.id !== id)
+      return [next, next]
+    })
+  },
+
+  async getSettings(): Promise<Settings> {
+    const saved = await readJson<Partial<Settings>>('settings.json', {})
+    return { ...DEFAULT_SETTINGS, ...saved }
+  },
+
+  async saveSettings(settings: Settings): Promise<void> {
+    await update<Settings, void>('settings.json', DEFAULT_SETTINGS, () => [settings, undefined])
+  },
+
+  async readParsed(id: string): Promise<BookDoc | null> {
+    try {
+      const raw = await fs.readFile(path.join(cacheDir(), `${id}.json`), 'utf-8')
+      return JSON.parse(raw) as BookDoc
+    } catch {
+      return null
+    }
+  },
+
+  async writeParsed(doc: BookDoc): Promise<void> {
+    await fs.mkdir(cacheDir(), { recursive: true })
+    await fs.writeFile(path.join(cacheDir(), `${doc.id}.json`), JSON.stringify(doc), 'utf-8')
+  }
+}

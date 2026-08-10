@@ -1,0 +1,1258 @@
+:root {
+  --bg: #15120e;
+  --bg-elev: #1e1a15;
+  --bg-sunk: #100e0b;
+  --text: #ece3d5;
+  --text-dim: #9b9083;
+  --accent: #e0a458;
+  --accent-soft: rgba(224, 164, 88, 0.16);
+  --line: rgba(236, 227, 213, 0.12);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+:root[data-theme='sepia'] {
+  --bg: #f3e9d6;
+  --bg-elev: #fbf4e6;
+  --bg-sunk: #e9dcc4;
+  --text: #3b3227;
+  --text-dim: #8a7a63;
+  --accent: #a4632b;
+  --accent-soft: rgba(164, 99, 43, 0.14);
+  --line: rgba(59, 50, 39, 0.16);
+  --shadow: 0 24px 60px rgba(90, 70, 40, 0.22);
+  color-scheme: light;
+}
+
+:root[data-theme='light'] {
+  --bg: #fbfaf8;
+  --bg-elev: #ffffff;
+  --bg-sunk: #f0eeea;
+  --text: #21201e;
+  --text-dim: #767370;
+  --accent: #9a5b2c;
+  --accent-soft: rgba(154, 91, 44, 0.12);
+  --line: rgba(33, 32, 30, 0.13);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.14);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+kbd {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 0.8em;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg-sunk);
+}
+
+.muted {
+  color: var(--text-dim);
+}
+
+.primary {
+  background: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 10px;
+  transition: filter 0.15s ease;
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.ghost {
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: 9px;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.ghost:hover {
+  color: var(--text);
+  background: var(--bg-sunk);
+}
+
+.ghost.boxed {
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+}
+
+.ghost.tiny {
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+/* ---------- library ---------- */
+
+.library {
+  height: 100%;
+  overflow-y: auto;
+  padding: 0 32px 60px;
+}
+
+.library-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 46px 0 18px;
+  background: linear-gradient(var(--bg) 72%, transparent);
+  -webkit-app-region: drag;
+}
+
+.library-bar h1 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+}
+
+.library-bar-right {
+  display: flex;
+  gap: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.banner {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.banner.error {
+  border-color: rgba(220, 100, 80, 0.5);
+  color: #e59182;
+}
+
+.resume {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 20px 22px;
+  margin-bottom: 26px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease;
+}
+
+.resume:hover {
+  transform: translateY(-1px);
+}
+
+.resume-kicker {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--accent);
+}
+
+.resume-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.shelf {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.shelf li {
+  position: relative;
+}
+
+.book {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.book:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.book-format {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.book-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.book-author {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.book-track {
+  margin-top: auto;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.book-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.book-pct {
+  font-size: 12px;
+}
+
+.remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+}
+
+.shelf li:hover .remove {
+  opacity: 1;
+}
+
+.empty {
+  text-align: center;
+  padding: 90px 0;
+}
+
+.library.dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -14px;
+}
+
+.drop-hint {
+  position: fixed;
+  inset: auto 0 40px;
+  text-align: center;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+/* ---------- reader ---------- */
+
+.reader {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.reader-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 34px 20px 12px 86px;
+  -webkit-app-region: drag;
+  border-bottom: 1px solid var(--line);
+}
+
+.reader-bar button {
+  -webkit-app-region: no-drag;
+}
+
+.chapter-button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 9px;
+  color: var(--text-dim);
+}
+
+.chapter-button:hover {
+  background: var(--bg-sunk);
+  color: var(--text);
+}
+
+.chapter-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.chapter-count {
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.reader-bar-right {
+  display: flex;
+  gap: 4px;
+}
+
+.page-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12vh 24px 46vh;
+}
+
+.page {
+  margin: 0 auto;
+  color: var(--text);
+}
+
+.page-chapter-title {
+  font-size: 0.85em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-family: -apple-system, sans-serif;
+  margin: 0 0 2em;
+}
+
+.blk {
+  margin: 0 0 1.15em;
+
+  /* A long section is mostly off-screen. Skipping layout and paint for the
+     paragraphs you can't see keeps opening a chapter fast; `auto` lets the
+     browser remember each block's real height once it has been rendered, so
+     the scrollbar stays honest. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4em;
+}
+
+.blk-h1,
+.blk-h2,
+.blk-h3 {
+  margin: 1.8em 0 0.7em;
+  line-height: 1.25;
+}
+
+.blk-h1 {
+  font-size: 1.5em;
+}
+
+.blk-h2 {
+  font-size: 1.28em;
+}
+
+.blk-h3 {
+  font-size: 1.1em;
+}
+
+.blk-quote {
+  margin-left: 0;
+  padding-left: 1.1em;
+  border-left: 2px solid var(--line);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.unit {
+  transition: opacity 0.18s ease;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.dim .unit {
+  opacity: var(--dim, 0.22);
+}
+
+/* Strong enough to find at a glance with dimming switched off, which is the
+   only cue left in that mode. */
+.dim .unit-active,
+.unit-active {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent),
+    inset 0 -2px 0 var(--accent);
+}
+
+.dim .unit-read {
+  opacity: calc(var(--dim, 0.22) * 1.5);
+}
+
+.bionic {
+  font-weight: 700;
+}
+
+/* ---- word lookup ---------------------------------------------------------- */
+
+.word-pop {
+  position: fixed;
+  z-index: 40;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  padding: 14px 16px 16px;
+  border-radius: 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: word-pop-in 0.13s ease-out;
+}
+
+@keyframes word-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.word-pop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.word-pop-word {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.word-pop-form,
+.word-pop-related {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.word-pop-form {
+  margin: -4px 0 8px;
+}
+
+.word-pop-meaning {
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.word-pop-line {
+  margin: 0 0 8px;
+  color: var(--text-dim);
+}
+
+/* The memory hook is the part worth coming back to, so it gets the accent. */
+.word-pop-trick {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 7px 7px 0;
+  padding: 7px 10px;
+}
+
+.word-pop-label {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.word-pop-related {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---- quiz question types --------------------------------------------------- */
+
+.quiz-kind {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  vertical-align: middle;
+}
+
+.quiz-review .quiz-kind {
+  margin: 0 0 5px;
+  display: inline-block;
+}
+
+.quiz-review-label {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.quiz-review-misread {
+  margin: 6px 0 10px;
+  padding: 7px 10px;
+  border-left: 2px solid var(--line);
+  border-radius: 0 7px 7px 0;
+  color: var(--text);
+}
+
+.word-pop-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.word-pop-saved {
+  color: var(--accent);
+}
+
+/* ---- saved word list ------------------------------------------------------ */
+
+.words-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.words {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.words li {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 9em;
+}
+
+.words li:last-child {
+  border-bottom: 0;
+}
+
+.word-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.word-item-lemma {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.word-item-meaning {
+  margin: 2px 0 8px;
+  color: var(--text);
+}
+
+.word-item-trick {
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 7px 7px 0;
+  color: var(--text);
+}
+
+.word-item-sentence {
+  margin: 0 0 6px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.word-pop-loading {
+  animation: word-pop-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes word-pop-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.page-end {
+  margin-top: 3em;
+  padding-top: 1.6em;
+  border-top: 1px solid var(--line);
+  font-family: -apple-system, sans-serif;
+  font-size: 15px;
+}
+
+/* ---------- HUD ---------- */
+
+.hud {
+  border-top: 1px solid var(--line);
+  background: var(--bg-elev);
+  padding: 10px 18px 12px;
+  display: grid;
+  gap: 8px;
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.meter-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 172px;
+}
+
+.meter-value {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 78px;
+  text-align: right;
+}
+
+/* Continuous track with a tick per section — stays legible at 4 sections or 400. */
+.track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 9px;
+  border-radius: 4px;
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.track-tick {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--bg);
+  opacity: 0.4;
+}
+
+.track-current {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-soft);
+  transition:
+    left 0.3s ease,
+    width 0.3s ease;
+}
+
+/* ---------- overlays ---------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.scrim.solid {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 92vw);
+  z-index: 21;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 34px 16px 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 40px;
+  font-size: 14px;
+}
+
+.drawer-body hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 18px 0;
+}
+
+.setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.setting-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.setting-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: normal;
+}
+
+.setting-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.setting-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.setting-row select {
+  background: var(--bg-sunk);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-sunk);
+  border-radius: 9px;
+  padding: 3px;
+}
+
+.seg {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.seg.on {
+  background: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.shortcuts {
+  margin-top: 26px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.shortcuts h3 {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.shortcuts ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.chapters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Some books have hundreds of sections; only paint the ones in the drawer. */
+.chapters li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.4em;
+}
+
+.chapter {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 9px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
+.chapter:hover {
+  background: var(--bg-sunk);
+  color: var(--text);
+}
+
+.chapter.on {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.chapter-index {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.thoughts {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.thoughts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: var(--bg-sunk);
+  line-height: 1.4;
+}
+
+.thoughts li span {
+  flex: 1;
+}
+
+.thoughts input[type='checkbox'] {
+  accent-color: var(--accent);
+  margin-top: 2px;
+}
+
+.thoughts.done li span {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
+.park {
+  position: fixed;
+  z-index: 21;
+  top: 22vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 90vw);
+  padding: 22px;
+  border-radius: 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.park label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.park input {
+  width: 100%;
+  font-size: 18px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  outline: none;
+}
+
+.park input:focus {
+  border-color: var(--accent);
+}
+
+.park-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ---------- sections list ---------- */
+
+.chapter-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setting-row input[type='password'] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  outline: none;
+}
+
+.setting-row input[type='password']:focus {
+  border-color: var(--accent);
+}
+
+/* ---------- quiz ---------- */
+
+.quiz {
+  position: fixed;
+  z-index: 21;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 92vw);
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 30px 30px 26px;
+  border-radius: 20px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.quiz.wide {
+  width: min(680px, 94vw);
+}
+
+.quiz-kicker {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.quiz-question {
+  margin: 0 0 16px;
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.quiz-options {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.quiz-options button {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 15px;
+  border-radius: 11px;
+  background: var(--bg-sunk);
+  border: 1px solid transparent;
+  line-height: 1.4;
+  transition:
+    border-color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.quiz-options button:hover {
+  border-color: var(--accent);
+  transform: translateX(2px);
+}
+
+.quiz-key {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--bg-elev);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.quiz-score {
+  font-size: 44px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+
+.quiz-score.pass {
+  color: var(--accent);
+}
+
+.quiz-review {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.quiz-review li {
+  display: flex;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: var(--bg-sunk);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.quiz-review-mark {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.quiz-review li.right .quiz-review-mark {
+  color: var(--accent);
+}
+
+.quiz-review li.wrong .quiz-review-mark {
+  color: #e07a5f;
+}
+
+.quiz-review-q {
+  margin: 0 0 3px;
+}
+
+.quiz-review p.muted {
+  margin: 0;
+}
+
+.quiz textarea {
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.quiz textarea:focus {
+  border-color: var(--accent);
+}
+
+.quiz-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.quiz-actions .primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.quiz-hint {
+  font-size: 11px;
+}
+
+.quiz-spinner {
+  width: 26px;
+  height: 26px;
+  margin: 22px auto 6px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- notes ---------- */
+
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.notes li {
+  padding: 13px 14px;
+  border-radius: 11px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+}
+
+.note-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-chapter {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.note-book {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.note-summary {
+  margin: 9px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.note-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ---------- shortcut toast ---------- */
+
+.toast {
+  position: fixed;
+  z-index: 25;
+  left: 50%;
+  bottom: 78px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  pointer-events: none;
+  animation: toast-in 0.16s ease-out;
+}
+
+.toast strong {
+  color: var(--accent);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
