@@ -1,4 +1,4 @@
-import type { BookDoc, BookMeta } from '../../../shared/types'
+import type { BookDoc, BookFormat, BookMeta } from '../../../shared/types'
 import { countWords } from './units'
 
 export function totalWordsOf(doc: BookDoc): number {
@@ -15,11 +15,15 @@ export function totalWordsOf(doc: BookDoc): number {
  * never touches either. The import starts alongside the file read rather than
  * after it, so splitting them costs nothing in wall-clock time.
  */
-export async function parseFile(
-  path: string,
-  format: 'epub' | 'pdf',
-  id: string
-): Promise<BookDoc> {
+export async function parseFile(path: string, format: BookFormat, id: string): Promise<BookDoc> {
+  if (format === 'article') {
+    const [{ parseArticle }, page] = await Promise.all([
+      import('../parse/article'),
+      window.api.fetchArticle(path)
+    ])
+    return parseArticle(page.html, page.url, id)
+  }
+
   const dataPromise = window.api.readFile(path)
 
   if (format === 'epub') {
@@ -41,8 +45,8 @@ export async function loadBook(meta: BookMeta): Promise<BookDoc> {
   return doc
 }
 
-/** Add a file to the library, parsing it once up front. */
-export async function importBook(path: string, format: 'epub' | 'pdf'): Promise<BookMeta> {
+/** Add a file — or an article URL — to the library, parsing it once up front. */
+export async function importBook(path: string, format: BookFormat): Promise<BookMeta> {
   const id = await window.api.idFor(path)
 
   const existing = (await window.api.getLibrary()).find((b) => b.id === id)

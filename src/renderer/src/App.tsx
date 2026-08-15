@@ -163,11 +163,28 @@ export default function App(): JSX.Element {
     if (picked.length > 0) await addPaths(picked.map((p) => p.path))
   }, [addPaths])
 
+  const addArticle = useCallback(async (rawUrl: string) => {
+    setError(null)
+    // Pasting a bare "example.com/post" is the common case, not a typo.
+    const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`
+    setBusy(`Fetching ${new URL(url).hostname}…`)
+    try {
+      await importBook(url, 'article')
+      setBooks(await window.api.getLibrary())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }, [])
+
   const openBook = useCallback(async (meta: BookMeta) => {
     setError(null)
     setBusy(`Opening ${meta.title}…`)
     try {
-      if (!(await window.api.fileExists(meta.path))) {
+      // An article's "path" is a URL, and its text is already parsed and
+      // cached — there is no file on disk to go looking for.
+      if (meta.format !== 'article' && !(await window.api.fileExists(meta.path))) {
         throw new Error(`${meta.title} has moved or been deleted — remove it and add it again.`)
       }
       const doc = await loadBook(meta)
@@ -239,6 +256,7 @@ export default function App(): JSX.Element {
         onOpen={(meta) => void openBook(meta)}
         onAdd={() => void addBooks()}
         onAddPaths={(paths) => void addPaths(paths)}
+        onAddUrl={(url) => void addArticle(url)}
         onRemove={(id) => void removeBook(id)}
         onOpenThoughts={() => setShowThoughts(true)}
         openThoughtCount={openThoughtCount}

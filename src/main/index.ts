@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron'
 import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -111,6 +111,40 @@ function registerIpc(): void {
     } catch {
       return false
     }
+  })
+
+  // Fetching happens here rather than in the renderer: the renderer is a
+  // file:// document with no business making cross-origin requests, and the
+  // page is only ever read as text — never loaded, never executed.
+  ipcMain.handle('article:fetch', async (_e, url: string) => {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      throw new Error(`${url} is not a valid address.`)
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('Only http and https addresses can be read.')
+    }
+
+    const response = await net.fetch(parsed.toString(), {
+      headers: {
+        // Some publishers serve a stub to clients they don't recognise.
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml'
+      }
+    })
+    if (!response.ok) {
+      throw new Error(`That page could not be read (${response.status} ${response.statusText}).`)
+    }
+
+    const type = response.headers.get('content-type') ?? ''
+    if (type !== '' && !/html|xml|text\/plain/i.test(type)) {
+      throw new Error(`That address is ${type.split(';')[0]}, not a web page.`)
+    }
+
+    return { html: await response.text(), url: response.url || parsed.toString() }
   })
 
   ipcMain.handle('book:idFor', (_e, filePath: string) => bookIdFor(filePath))

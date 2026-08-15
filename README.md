@@ -3,8 +3,8 @@
 A desktop reading app built around the way attention actually fails: not slow
 reading, but hollow reading — eyes moving, nothing landing.
 
-Reads EPUB and PDF. Everything stays on your machine; there are no accounts and
-nothing is uploaded.
+Reads EPUB, PDF, and articles on the web. Everything stays on your machine;
+there are no accounts and nothing is uploaded.
 
 ## What it does
 
@@ -24,6 +24,14 @@ away, hit Enter, carry on. The list is there when the reading is done.
 **Progress you can actually read.** Two bars at the bottom: how far through this
 section, and the whole book as one track with a tick per section — legible whether
 the book has four sections or four hundred. No points, no levels, no streaks.
+
+**Articles read like books.** Paste a link — or drop one onto the library — and the
+page is stripped down to the text: no nav, no subscribe box, no share buttons, no
+"related posts". The article is then cut into sections on its own headings, so a
+long essay gets the same contents page, per-section progress bar and end-of-section
+check that a book does. Articles with no headings are cut into roughly five-minute
+sections instead, and any one section that runs very long is split so the end of it
+is always in sight. Once it's been read in, it stays readable offline.
 
 **The book is left alone.** Nothing is hidden, reordered or skipped. Every section
 the file contains is a section you can read, contents page included. The model is
@@ -87,9 +95,14 @@ leaves the main process — the renderer only ever receives results.
   store in `userData` (library, progress, thoughts, settings). Writes are queued
   per file so overlapping updates can't lose each other.
 - `src/preload` — the `window.api` bridge; the renderer has no Node access.
-- `src/renderer/src/parse` — EPUB (JSZip + DOMParser over the OPF spine) and PDF
-  (pdf.js text items regrouped into lines and paragraphs) reduced to the same
-  block shape. Parsed books are cached so reopening is instant.
+- `src/renderer/src/parse` — EPUB (JSZip + DOMParser over the OPF spine), PDF
+  (pdf.js text items regrouped into lines and paragraphs) and web articles all
+  reduced to the same block shape. Parsed books are cached so reopening is instant.
+  An article is fetched in the main process and never loaded or executed — only
+  read as text. The body is found by scoring containers on how much unlinked
+  paragraph text they hold, after page furniture is removed by tag and by class
+  name. Legacy pages that lay their prose out in tables, or separate paragraphs
+  with `<br>` rather than `<p>`, are normalised first so they read like anything else.
   Section names come from the book's own contents (the EPUB 3 nav document, or
   toc.ncx), falling back to the headings printed on the page — stitched back
   together when a title is broken over several elements, as most are.

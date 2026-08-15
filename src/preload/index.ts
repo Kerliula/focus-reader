@@ -20,6 +20,9 @@ const api = {
   idFor: (path: string): Promise<string> => ipcRenderer.invoke('book:idFor', path),
   formatFor: (path: string): Promise<'epub' | 'pdf' | null> =>
     ipcRenderer.invoke('book:formatFor', path),
+  /** Download a page as text. The renderer never loads or runs it. */
+  fetchArticle: (url: string): Promise<{ html: string; url: string }> =>
+    ipcRenderer.invoke('article:fetch', url),
   /** Resolve a dropped File back to its absolute path. */
   pathForFile: (file: File): string => webUtils.getPathForFile(file),
 
