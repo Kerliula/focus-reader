@@ -9,6 +9,7 @@ interface Props {
   onOpen: (meta: BookMeta) => void
   onAdd: () => void
   onAddPaths: (paths: string[]) => void
+  onAddUrl: (url: string) => void
   onRemove: (id: string) => void
   onOpenThoughts: () => void
   openThoughtCount: number
@@ -31,6 +32,7 @@ export function Library({
   onOpen,
   onAdd,
   onAddPaths,
+  onAddUrl,
   onRemove,
   onOpenThoughts,
   openThoughtCount,
@@ -40,6 +42,13 @@ export function Library({
   wordCount
 }: Props): JSX.Element {
   const [dragging, setDragging] = useState(false)
+  const [url, setUrl] = useState('')
+
+  const submitUrl = (): void => {
+    if (url.trim() === '') return
+    onAddUrl(url)
+    setUrl('')
+  }
 
   // One pass for the most-recent book, rather than copying and sorting the
   // whole shelf to read a single element off the front.
@@ -65,7 +74,17 @@ export function Library({
         e.preventDefault()
         setDragging(false)
         const paths = Array.from(e.dataTransfer.files).map((file) => window.api.pathForFile(file))
-        if (paths.length > 0) onAddPaths(paths)
+        if (paths.length > 0) {
+          onAddPaths(paths)
+          return
+        }
+        // A link dragged out of a browser arrives as text, not as a file.
+        const dropped = (
+          e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
+        )
+          .split('\n')
+          .find((line) => /^https?:\/\//i.test(line.trim()))
+        if (dropped) onAddUrl(dropped.trim())
       }}
     >
       <header className="library-bar">
@@ -86,6 +105,22 @@ export function Library({
         </div>
       </header>
 
+      <div className="add-url">
+        <input
+          type="url"
+          value={url}
+          placeholder="Paste an article address to read it here"
+          spellCheck={false}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitUrl()
+          }}
+        />
+        <button className="ghost boxed" disabled={url.trim() === ''} onClick={submitUrl}>
+          Add article
+        </button>
+      </div>
+
       {error && <div className="banner error">{error}</div>}
       {busy && <div className="banner">{busy}</div>}
 
@@ -102,7 +137,9 @@ export function Library({
       {books.length === 0 ? (
         <div className="empty">
           <p>No books yet.</p>
-          <p className="muted">Drop an EPUB or PDF here, or use “Add book”.</p>
+          <p className="muted">
+            Drop an EPUB, a PDF or a link here — or paste an article address above.
+          </p>
         </div>
       ) : (
         <ul className="shelf">

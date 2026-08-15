@@ -147,6 +147,38 @@ kbd {
   -webkit-app-region: no-drag;
 }
 
+.add-url {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.add-url input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.add-url input::placeholder {
+  color: var(--text-dim);
+}
+
+.add-url input:focus {
+  border-color: var(--accent);
+}
+
+.add-url button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .banner {
   padding: 10px 14px;
   border-radius: 10px;

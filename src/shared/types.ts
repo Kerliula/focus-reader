@@ -20,10 +20,13 @@ export interface BookDoc {
   chapters: Chapter[]
 }
 
+export type BookFormat = 'epub' | 'pdf' | 'article'
+
 export interface BookMeta {
   id: string
+  /** A file path, or the source URL when the format is `article`. */
   path: string
-  format: 'epub' | 'pdf'
+  format: BookFormat
   title: string
   author: string
   addedAt: number
