@@ -1345,3 +1345,90 @@ kbd {
     transform: translateX(-50%);
   }
 }
+
+/* ---------- key setup ---------- */
+
+/* The prompt to add a key: informative, not alarming — nothing is broken. */
+.banner.setup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.banner.setup button {
+  flex: none;
+}
+
+.setting-section {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.setting-note {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.setting-note a {
+  color: var(--accent);
+}
+
+/* Text fields in the drawer inherit nothing useful by default. */
+.setting-row input[type='text'],
+.setting-row input[type='password'] {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.setting-row input[type='text']:focus,
+.setting-row input[type='password']:focus {
+  border-color: var(--accent);
+}
+
+.key-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 18px;
+}
+
+.key-status button {
+  flex: none;
+}
+
+.key-status button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.key-msg {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.key-msg.bad {
+  color: #e59182;
+}

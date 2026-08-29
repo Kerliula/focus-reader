@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type {
+  AiKeyStatus,
   BookDoc,
   BookMeta,
+  KeyTestResult,
   Note,
   Progress,
   QuizQuestion,
@@ -51,6 +53,10 @@ const api = {
   deleteWord: (id: string): Promise<SavedWord[]> => ipcRenderer.invoke('words:delete', id),
 
   aiAvailable: (): Promise<boolean> => ipcRenderer.invoke('ai:available'),
+  aiKeyStatus: (): Promise<AiKeyStatus> => ipcRenderer.invoke('ai:keyStatus'),
+  /** Check a key against DeepSeek. Omit it to check the one already in use. */
+  testApiKey: (candidate?: string): Promise<KeyTestResult> =>
+    ipcRenderer.invoke('ai:testKey', candidate),
   makeQuiz: (title: string, text: string): Promise<QuizQuestion[]> =>
     ipcRenderer.invoke('ai:quiz', title, text),
   /** Start building this section's quiz now, so it's ready at the end of it. */

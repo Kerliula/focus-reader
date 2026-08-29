@@ -71,16 +71,23 @@ npm run dist
 | `G` | Sentence ↔ paragraph |
 | `+` `−` | Text size |
 | `T` | Sections |
-| `,` | Settings |
+| `,` | Settings (in the library too) |
 | `N` | Your notes |
 | `⌘K` | Park a thought |
 | `Esc` | Back to library |
 
 ## DeepSeek
 
-The end-of-section quiz is the only thing that calls the DeepSeek API. Paste a key
-into Settings (or set `DEEPSEEK_API_KEY`) to switch it on; without one the app
-works exactly the same, minus the quizzes.
+Three things call the DeepSeek API: the two-line section preview, the double-click
+word explanation, and the end-of-section quiz. They stay off until there is a key,
+and the library says so with an **Add a key** button; without one the app works
+exactly the same, minus those three.
+
+Get a key at [platform.deepseek.com](https://platform.deepseek.com/api_keys), then
+open **Settings** — the ⚙ button in the library bar, or `,` from anywhere — and
+paste it in. **Check key** asks DeepSeek whether it works, so you find out there
+rather than mid-section. Setting `DEEPSEEK_API_KEY` in the environment works too,
+and overrides the saved one.
 
 The model reads a section in order to ask questions about it. It never decides what
 you read, never edits or reorders text, and nothing it returns is written back into

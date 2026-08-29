@@ -121,6 +121,19 @@ export interface Note {
   createdAt: number
 }
 
+/** Whether the AI features have a key to work with, and where it came from. */
+export interface AiKeyStatus {
+  hasKey: boolean
+  /** DEEPSEEK_API_KEY was set in the environment — it overrides the saved key. */
+  fromEnv: boolean
+}
+
+/** The result of checking a key against DeepSeek, in words fit to show. */
+export interface KeyTestResult {
+  ok: boolean
+  message: string
+}
+
 export type Theme = 'dark' | 'sepia' | 'light'
 export type Granularity = 'sentence' | 'paragraph'
 

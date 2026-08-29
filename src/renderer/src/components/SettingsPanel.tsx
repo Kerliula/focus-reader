@@ -1,11 +1,15 @@
-import type { ReactNode } from 'react'
-import type { Settings, Theme } from '../../../shared/types'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import type { AiKeyStatus, KeyTestResult, Settings, Theme } from '../../../shared/types'
 
 interface Props {
   settings: Settings
   onChange: (settings: Settings) => void
   onClose: () => void
+  /** Open the panel with the key box focused — how the library's prompt gets here. */
+  focusApiKey?: boolean
 }
+
+const KEY_PAGE = 'https://platform.deepseek.com/api_keys'
 
 const FONTS: { label: string; value: string }[] = [
   { label: 'Serif (Georgia)', value: 'Georgia, "Iowan Old Style", "Times New Roman", serif' },
@@ -37,9 +41,64 @@ function Row({
   )
 }
 
-export function SettingsPanel({ settings, onChange, onClose }: Props): JSX.Element {
+export function SettingsPanel({
+  settings,
+  onChange,
+  onClose,
+  focusApiKey = false
+}: Props): JSX.Element {
+  const [showKey, setShowKey] = useState(false)
+  const [status, setStatus] = useState<AiKeyStatus | null>(null)
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<KeyTestResult | null>(null)
+  const keyInput = useRef<HTMLInputElement>(null)
+
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     onChange({ ...settings, [key]: value })
+
+  // Only the environment half of this can change behind the panel's back; the
+  // saved key is whatever is in the box.
+  useEffect(() => {
+    void window.api.aiKeyStatus().then(setStatus)
+  }, [])
+
+  // Arriving from "add a key" should land the cursor in the box, not leave the
+  // reader hunting for it down the panel.
+  useEffect(() => {
+    if (!focusApiKey) return
+    const input = keyInput.current
+    input?.scrollIntoView({ block: 'center' })
+    input?.focus()
+  }, [focusApiKey])
+
+  // A verdict on the old key says nothing about the one being typed now.
+  useEffect(() => setResult(null), [settings.apiKey])
+
+  // Escape closes the drawer from wherever it was opened.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const check = async (): Promise<void> => {
+    setTesting(true)
+    // The typed key hasn't been saved yet — check exactly what's in the box.
+    const typed = settings.apiKey.trim()
+    try {
+      setResult(await window.api.testApiKey(typed === '' ? undefined : typed))
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const statusLine = status?.fromEnv
+    ? 'Using DEEPSEEK_API_KEY from your environment — it overrides anything typed here.'
+    : settings.apiKey.trim() !== ''
+      ? 'Saved. Check it here if lookups aren’t coming back.'
+      : 'No key yet — lookups, previews and quizzes stay off until there is one.'
 
   return (
     <>
@@ -183,16 +242,51 @@ export function SettingsPanel({ settings, onChange, onClose }: Props): JSX.Eleme
 
           <hr />
 
-          <Row label="DeepSeek API key" hint="stored on this machine only">
-            <input
-              type="password"
-              value={settings.apiKey}
-              placeholder="sk-…"
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(e) => set('apiKey', e.target.value.trim())}
-            />
+          <h3 className="setting-section">Word lookups, previews and quizzes</h3>
+          <p className="setting-note">
+            These three ask DeepSeek, so they need a key of your own. Everything else in
+            Focus Reader works without one. Get a key at{' '}
+            <a href={KEY_PAGE} target="_blank" rel="noreferrer">
+              platform.deepseek.com
+            </a>
+            , then paste it below.
+          </p>
+
+          <Row label="DeepSeek API key" hint="stays on this machine">
+            <div className="key-input">
+              <input
+                ref={keyInput}
+                type={showKey ? 'text' : 'password'}
+                value={settings.apiKey}
+                placeholder="sk-…"
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(e) => set('apiKey', e.target.value.trim())}
+              />
+              <button
+                type="button"
+                className="ghost tiny"
+                onClick={() => setShowKey((v) => !v)}
+                title={showKey ? 'Hide the key' : 'Show the key'}
+              >
+                {showKey ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </Row>
+
+          <div className="key-status">
+            <button
+              type="button"
+              className="ghost boxed"
+              disabled={testing || (settings.apiKey.trim() === '' && !status?.fromEnv)}
+              onClick={() => void check()}
+            >
+              {testing ? 'Checking…' : 'Check key'}
+            </button>
+            <span className={result?.ok === false ? 'key-msg bad' : 'key-msg'}>
+              {testing ? '' : (result?.message ?? statusLine)}
+            </span>
+          </div>
 
           <Row
             label="Two lines before each section"
@@ -249,7 +343,7 @@ export function SettingsPanel({ settings, onChange, onClose }: Props): JSX.Eleme
                 Save to keep it
               </li>
               <li>
-                <kbd>Esc</kbd> back to library
+                <kbd>,</kbd> this panel · <kbd>Esc</kbd> back to library
               </li>
             </ul>
           </div>

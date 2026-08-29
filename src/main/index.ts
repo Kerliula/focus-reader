@@ -14,11 +14,13 @@ import type {
 } from '../shared/types'
 import {
   aiAvailable,
+  aiKeyStatus,
   explainWord,
   makePreview,
   makeQuiz,
   prefetchPreview,
-  prefetchQuiz
+  prefetchQuiz,
+  testKey
 } from './ai'
 
 const isDev = !app.isPackaged
@@ -176,6 +178,9 @@ function registerIpc(): void {
   // The model is only ever given a section's text to write questions from — it
   // never decides what you read.
   ipcMain.handle('ai:available', () => aiAvailable())
+  ipcMain.handle('ai:keyStatus', () => aiKeyStatus())
+  // The key itself never comes back out — only whether DeepSeek accepted it.
+  ipcMain.handle('ai:testKey', (_e, candidate?: string) => testKey(candidate))
   ipcMain.handle('ai:quiz', (_e, title: string, text: string) => makeQuiz(title, text))
   // Returns at once: the generation carries on in the background.
   ipcMain.handle('ai:prefetchQuiz', (_e, title: string, text: string) => {

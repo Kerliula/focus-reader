@@ -15,6 +15,7 @@ import { Reader } from './components/Reader'
 import { ThoughtPanel } from './components/ThoughtPanel'
 import { NotesPanel } from './components/NotesPanel'
 import { WordsPanel } from './components/WordsPanel'
+import { SettingsPanel } from './components/SettingsPanel'
 
 type View = { name: 'library' } | { name: 'reader'; meta: BookMeta; doc: BookDoc }
 
@@ -32,6 +33,7 @@ export default function App(): JSX.Element {
   const [words, setWords] = useState<SavedWord[]>([])
   const [showWords, setShowWords] = useState(false)
   const [aiReady, setAiReady] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState<false | 'plain' | 'apiKey'>(false)
 
   useEffect(() => {
     void (async () => {
@@ -55,11 +57,6 @@ export default function App(): JSX.Element {
     })()
   }, [])
 
-  // The key can be pasted in mid-session; re-check once it changes.
-  useEffect(() => {
-    void window.api.aiAvailable().then(setAiReady)
-  }, [settings.apiKey])
-
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
   }, [settings.theme])
@@ -71,7 +68,11 @@ export default function App(): JSX.Element {
       firstSettingsRender.current = false
       return
     }
-    const timer = window.setTimeout(() => void window.api.saveSettings(settings), 400)
+    const timer = window.setTimeout(() => {
+      // The key can be pasted in mid-session, but the main process only sees it
+      // once it's saved — so re-check after the write, not before it.
+      void window.api.saveSettings(settings).then(() => window.api.aiAvailable().then(setAiReady))
+    }, 400)
     return () => window.clearTimeout(timer)
   }, [settings])
 
@@ -264,7 +265,18 @@ export default function App(): JSX.Element {
         noteCount={notes.length}
         onOpenWords={() => setShowWords(true)}
         wordCount={words.length}
+        onOpenSettings={() => setSettingsOpen((open) => (open === false ? 'plain' : false))}
+        aiReady={aiReady}
+        onAddKey={() => setSettingsOpen('apiKey')}
       />
+      {settingsOpen !== false && (
+        <SettingsPanel
+          settings={settings}
+          onChange={setSettings}
+          onClose={() => setSettingsOpen(false)}
+          focusApiKey={settingsOpen === 'apiKey'}
+        />
+      )}
       {showThoughts && (
         <ThoughtPanel
           thoughts={thoughts}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { BookMeta, Progress } from '../../../shared/types'
 
 interface Props {
@@ -17,6 +17,10 @@ interface Props {
   noteCount: number
   onOpenWords: () => void
   wordCount: number
+  onOpenSettings: () => void
+  /** False until a DeepSeek key is in place; the AI extras stay off till then. */
+  aiReady: boolean
+  onAddKey: () => void
 }
 
 function percent(meta: BookMeta, progress?: Progress): number {
@@ -39,10 +43,28 @@ export function Library({
   onOpenNotes,
   noteCount,
   onOpenWords,
-  wordCount
+  wordCount,
+  onOpenSettings,
+  aiReady,
+  onAddKey
 }: Props): JSX.Element {
   const [dragging, setDragging] = useState(false)
   const [url, setUrl] = useState('')
+
+  // Same key as in the reader, so it works wherever you are.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement | null
+      const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === ',') {
+        e.preventDefault()
+        onOpenSettings()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onOpenSettings])
 
   const submitUrl = (): void => {
     if (url.trim() === '') return
@@ -99,6 +121,9 @@ export function Library({
           <button className="ghost boxed" onClick={onOpenThoughts}>
             ✎ Parked{openThoughtCount > 0 ? ` (${openThoughtCount})` : ''}
           </button>
+          <button className="ghost boxed" title="Settings (,)" onClick={onOpenSettings}>
+            ⚙ Settings
+          </button>
           <button className="primary" onClick={onAdd}>
             Add book
           </button>
@@ -120,6 +145,21 @@ export function Library({
           Add article
         </button>
       </div>
+
+      {!aiReady && (
+        <div className="banner setup">
+          <div>
+            <strong>Word lookups, previews and quizzes are off.</strong>
+            <span className="muted">
+              {' '}
+              They ask DeepSeek, so they need an API key. Everything else already works.
+            </span>
+          </div>
+          <button className="ghost boxed" onClick={onAddKey}>
+            Add a key
+          </button>
+        </div>
+      )}
 
       {error && <div className="banner error">{error}</div>}
       {busy && <div className="banner">{busy}</div>}
