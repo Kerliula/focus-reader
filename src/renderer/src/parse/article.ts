@@ -1,4 +1,6 @@
 import type { Block, BookDoc, Chapter } from '../../../shared/types'
+import { PARSE_VERSION } from '../../../shared/types'
+import { attachImages, readDataUri, type ImageSink } from '../lib/images'
 import { extractBlocks, parseDocument } from './html'
 
 /**
@@ -166,6 +168,7 @@ function unwrapProseTables(doc: Document): void {
 function splitOnBreaks(doc: Document): void {
   for (const el of Array.from(doc.querySelectorAll('div,section,td,font,body'))) {
     if (el.querySelector(BLOCK_SELECTOR)) continue
+    if (el.querySelector('img,picture')) continue
     if (!/(?:<br[^>]*>\s*){2,}/i.test(el.innerHTML)) continue
 
     const parts = el.innerHTML
@@ -203,6 +206,9 @@ function promoteBareText(doc: Document): void {
   for (const el of Array.from(doc.querySelectorAll('div,section'))) {
     // Only the innermost container, so a paragraph isn't emitted twice.
     if (el.querySelector(`${BLOCK_SELECTOR},div,section`)) continue
+    // Rewriting to a paragraph keeps the text and throws the markup away, which
+    // would take a figure with it.
+    if (el.querySelector('img,picture')) continue
     const text = tidy(el.textContent ?? '')
     if (text.length < 40 || linkDensity(el) > 0.5) continue
     const p = doc.createElement('p')
@@ -393,7 +399,19 @@ function toChapters(blocks: Block[]): Chapter[] {
   return chapters.map((chapter, i) => ({ ...chapter, id: `c${i}` }))
 }
 
-export function parseArticle(html: string, url: string, id: string): BookDoc {
+/**
+ * More than an essay's worth of figures is a gallery, a photo rail or a page
+ * whose furniture we failed to strip — either way, not something to spend a
+ * hundred downloads on.
+ */
+const MAX_ARTICLE_IMAGES = 40
+
+export async function parseArticle(
+  html: string,
+  url: string,
+  id: string,
+  sink?: ImageSink
+): Promise<BookDoc> {
   const doc = parseDocument(html)
 
   const title =
@@ -415,22 +433,52 @@ export function parseArticle(html: string, url: string, id: string): BookDoc {
   splitOnBreaks(doc)
   promoteBareText(doc)
   const content = pickContent(doc)
-  let blocks = extractBlocks(content, 'a')
+
+  // A page's own addresses are relative to the page; ours have to survive
+  // being read back offline, so they are made absolute here, where the URL the
+  // page was actually served from is still known.
+  let taken = 0
+  let raw = extractBlocks(content, 'a', {
+    imageRef: sink
+      ? (href) => {
+          if (href.startsWith('data:')) return href
+          if (taken >= MAX_ARTICLE_IMAGES) return null
+          try {
+            const absolute = new URL(href, url)
+            if (absolute.protocol !== 'http:' && absolute.protocol !== 'https:') return null
+            taken++
+            return absolute.toString()
+          } catch {
+            return null
+          }
+        }
+      : undefined
+  })
 
   // The page title is usually printed at the top of the article too; keeping it
   // would open the reading with a heading that says what the header already says.
-  if (blocks.length > 0 && blocks[0].type === 'h1') blocks = blocks.slice(1)
+  if (raw.length > 0 && raw[0].type === 'h1') raw = raw.slice(1)
 
-  if (wordsIn(blocks) < 100) {
+  if (wordsIn(raw) < 100) {
     throw new Error(
       'No article text found at that address — the page may be mostly script-rendered, or behind a paywall.'
     )
   }
 
+  const blocks: Block[] = sink
+    ? await attachImages(
+        raw,
+        async (ref) =>
+          ref.startsWith('data:') ? readDataUri(ref) : window.api.fetchImage(ref, url),
+        sink
+      )
+    : (raw as Block[])
+
   return {
     id,
     title: shorten(title, 120),
     author: author === '' ? new URL(url).hostname.replace(/^www\./, '') : shorten(author, 80),
-    chapters: toChapters(blocks)
+    chapters: toChapters(blocks),
+    version: PARSE_VERSION
   }
 }

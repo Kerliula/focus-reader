@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type {
@@ -14,6 +15,28 @@ import { DEFAULT_SETTINGS } from '../shared/types'
 
 const dataDir = (): string => app.getPath('userData')
 const cacheDir = (): string => path.join(dataDir(), 'parsed')
+const assetDir = (bookId: string): string => path.join(dataDir(), 'assets', bookId)
+
+/** The file extension to keep a picture under, from what the source called it. */
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/avif': 'avif',
+  'image/svg+xml': 'svg',
+  'image/bmp': 'bmp',
+  'image/tiff': 'tiff'
+}
+
+export const ASSET_MEDIA_TYPES: Record<string, string> = Object.fromEntries(
+  Object.entries(IMAGE_EXTENSIONS).map(([type, ext]) => [ext, type])
+)
+
+/** Book ids are hex digests and file names are `<hash>.<ext>` — anything else is not ours. */
+const SAFE_ID = /^[a-f0-9]{1,64}$/
+const SAFE_ASSET = /^[a-f0-9]{1,64}\.[a-z0-9]{1,8}$/
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   try {
@@ -89,6 +112,7 @@ export const store = {
     })
 
     await fs.rm(path.join(cacheDir(), `${id}.json`), { force: true })
+    await fs.rm(assetDir(id), { force: true, recursive: true })
     return library
   },
 
@@ -167,6 +191,38 @@ export const store = {
 
   async saveSettings(settings: Settings): Promise<void> {
     await update<Settings, void>('settings.json', DEFAULT_SETTINGS, () => [settings, undefined])
+  },
+
+  /**
+   * Keep a picture beside the book it came from. The name is the hash of the
+   * bytes, so a decoration repeated on forty pages is stored once and a
+   * re-import overwrites rather than accumulates.
+   */
+  async writeAsset(bookId: string, data: Uint8Array, mediaType: string): Promise<string> {
+    if (!SAFE_ID.test(bookId)) throw new Error('Bad book id.')
+
+    const ext = IMAGE_EXTENSIONS[mediaType.toLowerCase()] ?? 'bin'
+    const name = `${createHash('sha1').update(data).digest('hex').slice(0, 32)}.${ext}`
+    const dir = assetDir(bookId)
+
+    await fs.mkdir(dir, { recursive: true })
+    const target = path.join(dir, name)
+    // Same name means same bytes; writing it again would only cost the disk.
+    try {
+      await fs.access(target)
+    } catch {
+      await fs.writeFile(target, data)
+    }
+
+    return `bookimg://${bookId}/${name}`
+  },
+
+  /** Resolve a `bookimg://` request to a file, or null if it points outside the store. */
+  assetPath(bookId: string, name: string): string | null {
+    if (!SAFE_ID.test(bookId) || !SAFE_ASSET.test(name)) return null
+    const dir = assetDir(bookId)
+    const target = path.resolve(dir, name)
+    return target.startsWith(`${dir}${path.sep}`) ? target : null
   },
 
   async readParsed(id: string): Promise<BookDoc | null> {

@@ -25,6 +25,16 @@ const api = {
   /** Download a page as text. The renderer never loads or runs it. */
   fetchArticle: (url: string): Promise<{ html: string; url: string }> =>
     ipcRenderer.invoke('article:fetch', url),
+  /** Download one of an article's illustrations. Null when it can't be had. */
+  fetchImage: (
+    url: string,
+    referrer: string
+  ): Promise<{ data: Uint8Array; mediaType: string } | null> =>
+    ipcRenderer.invoke('image:fetch', url, referrer),
+  /** Keep a picture beside its book; returns the `bookimg://` address to show it at. */
+  saveAsset: (bookId: string, data: Uint8Array, mediaType: string): Promise<string> =>
+    ipcRenderer.invoke('asset:save', bookId, data, mediaType),
+
   /** Resolve a dropped File back to its absolute path. */
   pathForFile: (file: File): string => webUtils.getPathForFile(file),
 

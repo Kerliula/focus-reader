@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   BookDoc,
+  BookImage,
   BookMeta,
   Note,
   Progress,
@@ -11,6 +12,8 @@ import type {
 } from '../../../shared/types'
 import { buildChapterUnits, countWords } from '../lib/units'
 import { ReaderUnit } from './ReaderUnit'
+import { ReaderFigure } from './ReaderFigure'
+import { ImageViewer } from './ImageViewer'
 import { SectionPreview } from './SectionPreview'
 import { WordPopover, type Lookup } from './WordPopover'
 import { SettingsPanel } from './SettingsPanel'
@@ -73,6 +76,7 @@ export function Reader({
   const [minutesRead, setMinutesRead] = useState(initialProgress?.minutesRead ?? 0)
   const [toast, setToast] = useState<string | null>(null)
   const [lookup, setLookup] = useState<Lookup | null>(null)
+  const [zoomed, setZoomed] = useState<BookImage | null>(null)
 
   const explainWord = useCallback((word: string, sentence: string, at: DOMRect) => {
     setLookup({ word, sentence, top: at.top, bottom: at.bottom, left: at.left + at.width / 2 })
@@ -123,6 +127,7 @@ export function Reader({
   const goToChapter = useCallback(
     (index: number, position: 'start' | 'end' = 'start') => {
       setLookup(null)
+      setZoomed(null)
       const clamped = Math.max(0, Math.min(doc.chapters.length - 1, index))
       if (clamped === chapterIndex && position === 'start') {
         setUnitIndex(0)
@@ -209,6 +214,16 @@ export function Reader({
 
       if (typing) return
 
+      // A picture at full size is the whole window: reading keys would move
+      // the spotlight behind something you can't see.
+      if (zoomed !== null) {
+        if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          setZoomed(null)
+        }
+        return
+      }
+
       if (e.key === 'Escape') {
         e.preventDefault()
         // The quiz is the one overlay Escape shouldn't dismiss by accident.
@@ -293,6 +308,7 @@ export function Reader({
       chapterIndex,
       overlay,
       lookup,
+      zoomed,
       settings,
       applySettings,
       onExit,
@@ -344,7 +360,11 @@ export function Reader({
   // ---- quiz -------------------------------------------------------------------
 
   const chapterText = useMemo(
-    () => chapter.blocks.map((b) => b.text).join('\n\n'),
+    () =>
+      chapter.blocks
+        .map((b) => b.text)
+        .filter((text) => text !== '')
+        .join('\n\n'),
     [chapter]
   )
 
@@ -370,7 +390,10 @@ export function Reader({
       if (upcoming) {
         void window.api.prefetchPreview(
           upcoming.title,
-          upcoming.blocks.map((b) => b.text).join('\n\n')
+          upcoming.blocks
+            .map((b) => b.text)
+            .filter((text) => text !== '')
+            .join('\n\n')
         )
       }
     }
@@ -529,6 +552,25 @@ export function Reader({
           )}
 
           {blocks.map((block) => {
+            if (block.type === 'image') {
+              // Rendering an image block as a tag would produce an <image>
+              // element; a picture we somehow have no address for is nothing.
+              if (!block.image) return null
+              const unit = block.units[0]
+              return (
+                <ReaderFigure
+                  key={block.id}
+                  unit={unit}
+                  image={block.image}
+                  isActive={unit.index === safeUnitIndex}
+                  isRead={unit.index < safeUnitIndex}
+                  onSelect={setUnitIndex}
+                  onOpen={setZoomed}
+                  activeRef={activeRef}
+                />
+              )
+            }
+
             const Tag = (block.type === 'p'
               ? 'p'
               : block.type === 'quote'
@@ -585,6 +627,8 @@ export function Reader({
           onClose={() => setLookup(null)}
         />
       ) : null}
+
+      {zoomed !== null ? <ImageViewer image={zoomed} onClose={() => setZoomed(null)} /> : null}
 
       {toast !== null ? <div className="toast">{toast}</div> : null}
 

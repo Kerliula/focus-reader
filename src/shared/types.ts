@@ -1,9 +1,27 @@
-export type BlockType = 'h1' | 'h2' | 'h3' | 'p' | 'quote'
+export type BlockType = 'h1' | 'h2' | 'h3' | 'p' | 'quote' | 'image'
+
+/**
+ * A picture lifted out of a book and kept beside it. The bytes live in the
+ * app's own asset store rather than in the parsed JSON: a well illustrated
+ * EPUB carries more image than text, and base64 in the cache would be read
+ * back into memory in full every time the book is opened.
+ */
+export interface BookImage {
+  /** `bookimg://<bookId>/<hash>.<ext>`, served from the asset store. */
+  src: string
+  /** Intrinsic size, so the page can hold the space before the file loads. */
+  width: number
+  height: number
+  /** The book's own description of the picture, for screen readers. */
+  alt: string
+}
 
 export interface Block {
   id: string
   type: BlockType
   text: string
+  /** Set on `image` blocks, and on those only. */
+  image?: BookImage
 }
 
 export interface Chapter {
@@ -12,12 +30,21 @@ export interface Chapter {
   blocks: Block[]
 }
 
+/**
+ * Bumped whenever a parser starts producing something it did not before, so
+ * books already in the library are read again instead of being served from a
+ * cache that predates the change.
+ */
+export const PARSE_VERSION = 2
+
 /** A fully parsed book, cached to disk so re-opening is instant. */
 export interface BookDoc {
   id: string
   title: string
   author: string
   chapters: Chapter[]
+  /** The PARSE_VERSION this was parsed by; absent on caches written before it. */
+  version?: number
 }
 
 export type BookFormat = 'epub' | 'pdf' | 'article'

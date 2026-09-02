@@ -1,8 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { store } from './store'
+import { ASSET_MEDIA_TYPES, store } from './store'
 import type {
   BookDoc,
   BookMeta,
@@ -24,6 +24,24 @@ import {
 } from './ai'
 
 const isDev = !app.isPackaged
+
+/**
+ * Pictures pulled out of books are served over their own scheme rather than
+ * inlined into the page. Declaring it privileged has to happen before the app
+ * is ready, and marks it as a normal secure origin so `<img>` treats a book's
+ * illustration exactly like any other image.
+ */
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'bookimg', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+])
+
+// Some publishers serve a stub to clients they don't recognise.
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36'
+
+/** Past this an "illustration" is a poster or a hero video frame, not a figure. */
+const MAX_IMAGE_BYTES = 12 * 1024 * 1024
+const IMAGE_FETCH_TIMEOUT_MS = 15_000
 
 function bookIdFor(filePath: string): string {
   return createHash('sha1').update(filePath).digest('hex').slice(0, 16)
@@ -71,7 +89,35 @@ function createWindow(): void {
   }
 }
 
+/**
+ * `bookimg://<bookId>/<hash>.<ext>` → the file in this book's asset directory.
+ * The store refuses anything that isn't a hex id and a hashed file name, so a
+ * crafted address can't be walked out of the directory it belongs to.
+ */
+function registerAssetProtocol(): void {
+  protocol.handle('bookimg', async (request) => {
+    const url = new URL(request.url)
+    const file = store.assetPath(url.hostname, decodeURIComponent(url.pathname).replace(/^\//, ''))
+    if (file === null) return new Response('Not found', { status: 404 })
+
+    try {
+      const data = await fs.readFile(file)
+      const ext = path.extname(file).slice(1).toLowerCase()
+      return new Response(data, {
+        headers: {
+          'Content-Type': ASSET_MEDIA_TYPES[ext] ?? 'application/octet-stream',
+          // Named by content hash, so a file at this address never changes.
+          'Cache-Control': 'public, max-age=31536000, immutable'
+        }
+      })
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+  })
+}
+
 app.whenReady().then(() => {
+  registerAssetProtocol()
   registerIpc()
   createWindow()
 
@@ -131,9 +177,7 @@ function registerIpc(): void {
 
     const response = await net.fetch(parsed.toString(), {
       headers: {
-        // Some publishers serve a stub to clients they don't recognise.
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36',
+        'User-Agent': BROWSER_UA,
         Accept: 'text/html,application/xhtml+xml'
       }
     })
@@ -148,6 +192,52 @@ function registerIpc(): void {
 
     return { html: await response.text(), url: response.url || parsed.toString() }
   })
+
+  /**
+   * An illustration referenced by an article, fetched here for the same reason
+   * the page itself is: the renderer is a file:// document, and its content
+   * policy has no business being opened up to arbitrary remote hosts. What
+   * comes back is only ever handled as bytes.
+   */
+  ipcMain.handle('image:fetch', async (_e, url: string, referrer: string) => {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return null
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+
+    // A picture that never arrives shouldn't hold up the rest of the article.
+    const abort = new AbortController()
+    const timer = setTimeout(() => abort.abort(), IMAGE_FETCH_TIMEOUT_MS)
+    try {
+      const response = await net.fetch(parsed.toString(), {
+        signal: abort.signal,
+        headers: {
+          'User-Agent': BROWSER_UA,
+          Accept: 'image/*',
+          // Hotlink protection turns away anything without one.
+          Referer: referrer
+        }
+      })
+      if (!response.ok) return null
+
+      const type = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
+      if (!type.startsWith('image/')) return null
+
+      const data = new Uint8Array(await response.arrayBuffer())
+      return data.byteLength > MAX_IMAGE_BYTES ? null : { data, mediaType: type }
+    } catch {
+      return null
+    } finally {
+      clearTimeout(timer)
+    }
+  })
+
+  ipcMain.handle('asset:save', (_e, bookId: string, data: Uint8Array, mediaType: string) =>
+    store.writeAsset(bookId, data, mediaType)
+  )
 
   ipcMain.handle('book:idFor', (_e, filePath: string) => bookIdFor(filePath))
   ipcMain.handle('book:formatFor', (_e, filePath: string) => formatFor(filePath))

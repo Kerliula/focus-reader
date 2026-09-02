@@ -1,4 +1,4 @@
-import type { BlockType, Chapter, Granularity } from '../../../shared/types'
+import type { BlockType, BookImage, Chapter, Granularity } from '../../../shared/types'
 
 export interface Unit {
   key: string
@@ -13,6 +13,8 @@ export interface RenderBlock {
   id: string
   type: BlockType
   units: Unit[]
+  /** Set on `image` blocks: the picture this block is standing in for. */
+  image?: BookImage
 }
 
 export interface ChapterUnits {
@@ -78,7 +80,9 @@ export function buildChapterUnits(chapter: Chapter, granularity: Granularity): C
       return unit
     })
 
-    blocks.push({ id: block.id, type: block.type, units: blockUnits })
+    // A picture is one unit with no words in it: the spotlight stops on it, and
+    // moving on is the same keypress as anywhere else.
+    blocks.push({ id: block.id, type: block.type, units: blockUnits, image: block.image })
   }
 
   return { blocks, units, totalWords: running }

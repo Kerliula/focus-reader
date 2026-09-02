@@ -33,6 +33,13 @@ check that a book does. Articles with no headings are cut into roughly five-minu
 sections instead, and any one section that runs very long is split so the end of it
 is always in sight. Once it's been read in, it stays readable offline.
 
+**The pictures come too.** Diagrams, plates and photographs are pulled out of
+the book and shown where the author put them — between the same two paragraphs,
+in the same order, with the caption underneath still reading as the caption. A
+figure takes its turn in the spotlight like a sentence does, and clicking it
+opens it at full size, because a reading column is the wrong width for a map.
+Spacers, bullets, rules, share icons and tracking pixels are left behind.
+
 **The book is left alone.** Nothing is hidden, reordered or skipped. Every section
 the file contains is a section you can read, contents page included. The model is
 never asked what belongs in your book.
@@ -74,6 +81,7 @@ npm run dist
 | `,` | Settings (in the library too) |
 | `N` | Your notes |
 | `⌘K` | Park a thought |
+| Click a figure | Open it full size (`Esc` closes) |
 | `Esc` | Back to library |
 
 ## DeepSeek
@@ -115,7 +123,30 @@ leaves the main process — the renderer only ever receives results.
   together when a title is broken over several elements, as most are.
 - `src/renderer/src/lib/units.ts` — sentence splitting and unit building, pure and
   separate from the UI.
+- `src/renderer/src/lib/images.ts` — one rule for what counts as an illustration,
+  shared by all three parsers: measured, filtered on its real size rather than on
+  what the markup called it, and stored under the hash of its bytes so a
+  decoration repeated at every chapter opening is kept once. The files live beside
+  the library in the app's data directory, not inside the parsed JSON, and are
+  served to the page over a `bookimg://` scheme that can only reach that
+  directory. Where a picture is written into the file — an EPUB names it in the
+  spine document, an article links to it, a PDF only paints it — is each parser's
+  own problem; `parse/pdfImages.ts` finds the rectangle a page draws an image
+  into and cuts it out of the rendered page, so a figure arrives with its colours,
+  masks and tiling already resolved.
+
+  Pulling figures out of a PDF means rendering the pages that have them, so the
+  first open of a heavily illustrated PDF takes a good deal longer than it used
+  to: a 500-page textbook with a figure on nearly every page took about seven
+  minutes and produced 190 of them. It happens once — the result is cached like
+  everything else, the library says what it is doing while it works, and it
+  carries on whether or not the window is in front. Adding illustrations changed
+  what the parsers produce, so books already in the library are read once more
+  the next time they are opened.
 
 ## Sample books
 
-`samples/` holds a short generated EPUB and a text PDF for trying things out.
+`samples/` holds a few short generated EPUBs and a text PDF for trying things
+out. `an-illustrated-study.epub` is the one with pictures in it: a figure with a
+caption, an SVG drawing, a full-page plate on its own, the same diagram used
+twice, and a rule, an icon and a tracking pixel that should never appear.

@@ -1,5 +1,13 @@
 import JSZip from 'jszip'
 import type { Block, BookDoc, Chapter } from '../../../shared/types'
+import { PARSE_VERSION } from '../../../shared/types'
+import {
+  attachImages,
+  mediaTypeFor,
+  readDataUri,
+  type ImageSink,
+  type StoredImage
+} from '../lib/images'
 import { extractBlocks, parseDocument } from './html'
 
 const OPS_NAMESPACE = 'http://www.idpf.org/2007/ops'
@@ -187,7 +195,11 @@ function titleFromBlocks(blocks: Block[]): string {
   return shorten((meaningful ?? seed).text, 60)
 }
 
-export async function parseEpub(data: Uint8Array, id: string): Promise<BookDoc> {
+export async function parseEpub(
+  data: Uint8Array,
+  id: string,
+  sink?: ImageSink
+): Promise<BookDoc> {
   const zip = await JSZip.loadAsync(data)
 
   const containerXml = await readText(zip, 'META-INF/container.xml')
@@ -233,6 +245,29 @@ export async function parseEpub(data: Uint8Array, id: string): Promise<BookDoc> 
     .filter((v): v is { path: string; mediaType: string; properties: string } => Boolean(v))
     .filter((item) => !item.mediaType.includes('image'))
 
+  // Manifest paths give a picture's declared type; the file extension is the
+  // fallback for the EPUBs whose manifest disagrees with what is in the zip.
+  const imageTypes = new Map<string, string>()
+  for (const item of manifest.values()) imageTypes.set(item.path, item.mediaType)
+
+  /** Read a picture out of the zip by the path the spine document named. */
+  const loadImage = async (
+    ref: string
+  ): Promise<{ data: Uint8Array; mediaType: string } | null> => {
+    if (ref.startsWith('data:')) return readDataUri(ref)
+    const file = zip.file(ref)
+    if (!file) return null
+    const declared = imageTypes.get(ref) ?? ''
+    return {
+      data: await file.async('uint8array'),
+      mediaType: declared.startsWith('image/') ? declared : mediaTypeFor(ref)
+    }
+  }
+
+  // Shared across sections: publishers repeat the same rule or ornament at the
+  // head of every chapter, and it should cost one read for the whole book.
+  const imageCache = new Map<string, StoredImage | null>()
+
   const chapters: Chapter[] = []
   for (let i = 0; i < spine.length; i++) {
     const source = await readText(zip, spine[i].path)
@@ -242,13 +277,25 @@ export async function parseEpub(data: Uint8Array, id: string): Promise<BookDoc> 
     const body = doc.body ?? doc.documentElement
     if (!body) continue
 
-    const blocks = extractBlocks(body, `c${i}`)
-    // Skip cover pages and other near-empty spine entries.
+    const baseDirOfDoc = dirOf(spine[i].path)
+    const raw = extractBlocks(body, `c${i}`, {
+      imageRef: sink
+        ? (href) => (href.startsWith('data:') ? href : resolvePath(baseDirOfDoc, href))
+        : undefined
+    })
+
+    const blocks = sink ? await attachImages(raw, loadImage, sink, imageCache) : (raw as Block[])
+
+    // Skip cover pages and other near-empty spine entries — but a page holding
+    // a full-page plate and nothing else is exactly what it looks like, and is
+    // worth keeping even though it has no words in it.
     const words = blocks.reduce((sum, b) => sum + b.text.split(/\s+/).length, 0)
-    if (words < 12) continue
+    const hasPicture = blocks.some((b) => b.type === 'image')
+    if (words < 12 && !hasPicture) continue
 
     const fromToc = tocTitles.get(spine[i].path) ?? ''
-    const fromBlocks = titleFromBlocks(blocks)
+    // A plate's alt text is a description, never a section name.
+    const fromBlocks = titleFromBlocks(blocks.filter((b) => b.type !== 'image'))
     // The contents entry wins by default, except when it is a bare "1", or when
     // the page carries the same title plus the part that got left off it.
     const preferBlocks =
@@ -270,5 +317,5 @@ export async function parseEpub(data: Uint8Array, id: string): Promise<BookDoc> 
 
   if (chapters.length === 0) throw new Error('No readable text found in this EPUB.')
 
-  return { id, title, author, chapters }
+  return { id, title, author, chapters, version: PARSE_VERSION }
 }

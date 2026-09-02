@@ -461,6 +461,82 @@ kbd {
   opacity: calc(var(--dim, 0.22) * 1.5);
 }
 
+/* ---- illustrations -------------------------------------------------------- */
+
+.blk-image {
+  margin: 1.8em 0;
+
+  /* The rest of the page skips layout for what's off-screen; a figure must not.
+     Its height is the one thing on the page the browser can only learn by
+     loading the file, and guessing it wrong moves the line you're reading. */
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
+
+/* A column sized for prose is too narrow for a diagram with six panels in it.
+   A figure is allowed out past the text, centred on the same middle, as far as
+   the window has room for — and no further, so the page never scrolls sideways. */
+.unit-figure {
+  display: block;
+  padding: 6px;
+  width: max-content;
+  max-width: min(calc(100vw - 96px), 1100px);
+  position: relative;
+  left: 50%;
+  translate: -50% 0;
+}
+
+.unit-figure img {
+  display: block;
+  max-width: 100%;
+  /* Tall plates should fit on screen rather than needing to be scrolled past. */
+  max-height: 78vh;
+  width: auto;
+  height: auto;
+  border-radius: 3px;
+  cursor: zoom-in;
+  background: var(--bg-sunk);
+}
+
+/* The dimming that hides unread prose would hide a picture altogether; a
+   figure you haven't reached yet stays visible, just quieter. */
+.dim .unit-figure,
+.dim .unit-figure.unit-read {
+  opacity: calc(0.45 + var(--dim, 0.22) * 0.5);
+}
+
+.dim .unit-figure.unit-active {
+  opacity: 1;
+}
+
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vh 3vw;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  cursor: zoom-out;
+}
+
+.image-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  cursor: pointer;
+}
+
 .bionic {
   font-weight: 700;
 }

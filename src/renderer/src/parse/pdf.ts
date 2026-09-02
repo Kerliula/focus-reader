@@ -1,6 +1,9 @@
 import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { Block, BookDoc, Chapter } from '../../../shared/types'
+import { PARSE_VERSION } from '../../../shared/types'
+import type { ImageSink } from '../lib/images'
+import { createFigureCutter, type PlacedImage } from './pdfImages'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -69,7 +72,13 @@ function isFurniture(line: Line): boolean {
   return /^[\divxlcdm]{1,6}$/i.test(line.text.replace(/[.\s|—-]/g, ''))
 }
 
-function linesToBlocks(lines: Line[], idPrefix: string, startIndex: number): Block[] {
+/** A block, with the height on the page it starts at — where a figure slots in. */
+interface AnchoredBlock {
+  block: Block
+  y: number
+}
+
+function linesToBlocks(lines: Line[], idPrefix: string, startIndex: number): AnchoredBlock[] {
   const kept = lines.filter((l) => !isFurniture(l))
   if (kept.length === 0) return []
 
@@ -80,16 +89,19 @@ function linesToBlocks(lines: Line[], idPrefix: string, startIndex: number): Blo
   for (let i = 1; i < kept.length; i++) gaps.push(kept[i - 1].y - kept[i].y)
   const bodyGap = median(gaps) || bodySize * 1.2
 
-  const blocks: Block[] = []
+  const blocks: AnchoredBlock[] = []
   let counter = startIndex
-  let current: { text: string; heading: boolean } | null = null
+  let current: { text: string; heading: boolean; y: number } | null = null
 
   const flush = (): void => {
     if (current && current.text.trim() !== '') {
       blocks.push({
-        id: `${idPrefix}-b${counter++}`,
-        type: current.heading ? 'h3' : 'p',
-        text: current.text.trim()
+        block: {
+          id: `${idPrefix}-b${counter++}`,
+          type: current.heading ? 'h3' : 'p',
+          text: current.text.trim()
+        },
+        y: current.y
       })
     }
     current = null
@@ -116,7 +128,7 @@ function linesToBlocks(lines: Line[], idPrefix: string, startIndex: number): Blo
 
     if (breakHere) {
       flush()
-      current = { text: line.text, heading: isHeading }
+      current = { text: line.text, heading: isHeading, y: line.y }
       continue
     }
 
@@ -134,7 +146,39 @@ function linesToBlocks(lines: Line[], idPrefix: string, startIndex: number): Blo
   return blocks
 }
 
-export async function parsePdf(data: Uint8Array, id: string): Promise<BookDoc> {
+/**
+ * Weave a page's figures back in among its paragraphs. Both are known by the
+ * height they sit at, so this is the same merge a compositor would do: work
+ * down the page, and whatever comes next is whatever is highest up.
+ */
+function interleave(blocks: AnchoredBlock[], images: PlacedImage[], idPrefix: string): Block[] {
+  if (images.length === 0) return blocks.map((b) => b.block)
+
+  const out: Block[] = []
+  let next = 0
+
+  const take = (until: number): void => {
+    while (next < images.length && images[next].y >= until) {
+      out.push({
+        id: `${idPrefix}-i${next}-${out.length}`,
+        type: 'image',
+        text: '',
+        image: { ...images[next].image, alt: '' }
+      })
+      next++
+    }
+  }
+
+  for (const anchored of blocks) {
+    take(anchored.y)
+    out.push(anchored.block)
+  }
+  take(Number.NEGATIVE_INFINITY)
+
+  return out
+}
+
+export async function parsePdf(data: Uint8Array, id: string, sink?: ImageSink): Promise<BookDoc> {
   // pdf.js detaches the buffer it is handed, so give it a copy.
   const pdf = await pdfjs.getDocument({ data: data.slice() }).promise
 
@@ -155,6 +199,9 @@ export async function parsePdf(data: Uint8Array, id: string): Promise<BookDoc> {
   } catch {
     // No usable outline — fall back to fixed page chunks below.
   }
+
+  // Holds the canvases the figures are cut from, for as long as the parse runs.
+  const cutter = sink ? createFigureCutter() : null
 
   const chapters: Chapter[] = []
   let current: Chapter | null = null
@@ -179,13 +226,24 @@ export async function parsePdf(data: Uint8Array, id: string): Promise<BookDoc> {
     const page = await pdf.getPage(pageNum)
     const content = await page.getTextContent()
     const items = content.items.filter((i) => 'str' in i) as unknown as RawItem[]
-    const blocks = linesToBlocks(toLines(items), current.id, blockCount)
-    blockCount += blocks.length
-    current.blocks.push(...blocks)
+    const anchored = linesToBlocks(toLines(items), current.id, blockCount)
+    blockCount += anchored.length
+
+    let figures: PlacedImage[] = []
+    if (cutter && sink) {
+      try {
+        figures = await cutter.imagesOnPage(page, sink)
+      } catch {
+        // A page whose figures won't come out is still a page worth reading.
+      }
+    }
+
+    current.blocks.push(...interleave(anchored, figures, `${current.id}-p${pageNum}`))
     page.cleanup()
   }
 
   if (current && current.blocks.length > 0) chapters.push(current)
+  cutter?.dispose()
   await pdf.destroy()
 
   if (chapters.length === 0) {
@@ -196,6 +254,7 @@ export async function parsePdf(data: Uint8Array, id: string): Promise<BookDoc> {
     id,
     title: info.Title?.trim() || 'Untitled PDF',
     author: info.Author?.trim() || 'Unknown author',
-    chapters
+    chapters,
+    version: PARSE_VERSION
   }
 }

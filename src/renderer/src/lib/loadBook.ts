@@ -1,4 +1,6 @@
 import type { BookDoc, BookFormat, BookMeta } from '../../../shared/types'
+import { PARSE_VERSION } from '../../../shared/types'
+import { createImageSink } from './images'
 import { countWords } from './units'
 
 export function totalWordsOf(doc: BookDoc): number {
@@ -16,29 +18,37 @@ export function totalWordsOf(doc: BookDoc): number {
  * after it, so splitting them costs nothing in wall-clock time.
  */
 export async function parseFile(path: string, format: BookFormat, id: string): Promise<BookDoc> {
+  // Where a book's illustrations go. Handed to the parsers rather than reached
+  // for inside them, so each one only has to say what a picture is and where
+  // it sits — not where it is kept or what makes one worth keeping.
+  const sink = createImageSink(id)
+
   if (format === 'article') {
     const [{ parseArticle }, page] = await Promise.all([
       import('../parse/article'),
       window.api.fetchArticle(path)
     ])
-    return parseArticle(page.html, page.url, id)
+    return parseArticle(page.html, page.url, id, sink)
   }
 
   const dataPromise = window.api.readFile(path)
 
   if (format === 'epub') {
     const [{ parseEpub }, data] = await Promise.all([import('../parse/epub'), dataPromise])
-    return parseEpub(data, id)
+    return parseEpub(data, id, sink)
   }
 
   const [{ parsePdf }, data] = await Promise.all([import('../parse/pdf'), dataPromise])
-  return parsePdf(data, id)
+  return parsePdf(data, id, sink)
 }
 
 /** Parsed books are cached on disk — re-opening a 600-page PDF should be instant. */
 export async function loadBook(meta: BookMeta): Promise<BookDoc> {
   const cached = await window.api.getParsed(meta.id)
-  if (cached && cached.chapters.length > 0) return cached
+  // A cache written by an older parser is missing whatever that parser could
+  // not see. Reading the file again is a one-off cost; a book permanently
+  // missing its illustrations is not.
+  if (cached && cached.chapters.length > 0 && cached.version === PARSE_VERSION) return cached
 
   const doc = await parseFile(meta.path, meta.format, meta.id)
   await window.api.saveParsed(doc)
