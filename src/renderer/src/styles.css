@@ -1324,6 +1324,18 @@ kbd {
   font-size: 11px;
 }
 
+/* Sits under the spinner, on the same centre line, so the way out is where
+   the eye already is while it waits. */
+.quiz-skip-waiting {
+  display: block;
+  margin: 0 auto;
+}
+
+.quiz-skip-waiting .quiz-hint {
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
 .quiz-spinner {
   width: 26px;
   height: 26px;

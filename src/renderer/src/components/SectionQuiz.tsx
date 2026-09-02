@@ -69,6 +69,24 @@ export function SectionQuiz({
     if (stage === 'summary') summaryRef.current?.focus()
   }, [stage])
 
+  /**
+   * Escape is held back from the quiz everywhere else, so that a section's
+   * check can't be dismissed by a stray keypress. While the questions are
+   * still being written there is nothing to dismiss by accident and nothing to
+   * lose — and in thinking mode that wait runs past a minute. Waiting on a
+   * model is not the reading, and it should never be the thing that stops you.
+   */
+  useEffect(() => {
+    if (stage !== 'loading') return
+    const listener = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      onDone(null)
+    }
+    window.addEventListener('keydown', listener)
+    return () => window.removeEventListener('keydown', listener)
+  }, [stage, onDone])
+
   const score = picked.reduce((sum, choice, i) => sum + (choice === questions[i]?.answer ? 1 : 0), 0)
   const passed = questions.length > 0 && score / questions.length >= passMark
 
@@ -98,6 +116,9 @@ export function SectionQuiz({
             Working through what you just read, then writing six questions on it…
           </p>
           <div className="quiz-spinner" />
+          <button className="ghost tiny quiz-skip-waiting" onClick={() => onDone(null)}>
+            skip the quiz <span className="quiz-hint">Esc</span>
+          </button>
         </div>
       </>
     )
