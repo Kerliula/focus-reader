@@ -130,19 +130,34 @@ leaves the main process — the renderer only ever receives results.
   the library in the app's data directory, not inside the parsed JSON, and are
   served to the page over a `bookimg://` scheme that can only reach that
   directory. Where a picture is written into the file — an EPUB names it in the
-  spine document, an article links to it, a PDF only paints it — is each parser's
-  own problem; `parse/pdfImages.ts` finds the rectangle a page draws an image
-  into and cuts it out of the rendered page, so a figure arrives with its colours,
-  masks and tiling already resolved.
+  spine document, an article links to it, a PDF has none — is each parser's own
+  problem.
 
-  Pulling figures out of a PDF means rendering the pages that have them, so the
-  first open of a heavily illustrated PDF takes a good deal longer than it used
-  to: a 500-page textbook with a figure on nearly every page took about seven
-  minutes and produced 190 of them. It happens once — the result is cached like
-  everything else, the library says what it is doing while it works, and it
-  carries on whether or not the window is in front. Adding illustrations changed
-  what the parsers produce, so books already in the library are read once more
-  the next time they are opened.
+  A PDF is the hard one, because it has no idea what a figure is: it holds
+  drawing instructions, and "figure 1.2" is whatever those instructions happen to
+  put in one part of the page. Looking for the images a page paints finds
+  photographs and almost nothing else — a five-panel diagram of arrows, boxes and
+  labels is vector art, and the one photograph in it is a tile in the corner. So
+  `parse/pdfImages.ts` works the other way round and finds a figure by where the
+  *text* isn't: prose runs down a page at a steady leading, and where it stops for
+  a couple of inches, something else is on the paper. That band is rendered as the
+  page would print and trimmed to the ink inside it — which makes no difference
+  between a photograph, a drawing or both, and keeps the labels and axes around it
+  because they were never separate things to begin with. A band has to be
+  reasonably covered in ink to count: printers' crop marks are four hairlines in
+  the corners of every sheet, blank ones included, and without that test every
+  blank page in a book becomes a picture of nothing.
+
+  Pulling figures out of a PDF means rendering, so the first open of a heavily
+  illustrated one takes longer than it used to: a 500-page textbook with a figure
+  on nearly every page took a couple of minutes and produced 226 of them, at 41MB
+  on disk. Only the band a figure sits in is rasterised, which is a fraction of a
+  page and the reason this is minutes rather than the quarter of an hour it would
+  otherwise be. It happens once — the result is cached like everything else, the
+  library says what it is doing while it works, and it carries on whether or not
+  the window is in front. Adding illustrations changed what the parsers produce,
+  so books already in the library are read once more the next time they are
+  opened.
 
 ## Sample books
 

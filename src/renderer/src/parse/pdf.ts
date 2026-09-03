@@ -226,13 +226,16 @@ export async function parsePdf(data: Uint8Array, id: string, sink?: ImageSink): 
     const page = await pdf.getPage(pageNum)
     const content = await page.getTextContent()
     const items = content.items.filter((i) => 'str' in i) as unknown as RawItem[]
-    const anchored = linesToBlocks(toLines(items), current.id, blockCount)
+    const lines = toLines(items)
+    const anchored = linesToBlocks(lines, current.id, blockCount)
     blockCount += anchored.length
 
     let figures: PlacedImage[] = []
     if (cutter && sink) {
       try {
-        figures = await cutter.imagesOnPage(page, sink)
+        // The lines are what say where the figures are: a figure is the part
+        // of the page the text steps around.
+        figures = await cutter.figuresOnPage(page, lines, sink)
       } catch {
         // A page whose figures won't come out is still a page worth reading.
       }

@@ -1,17 +1,24 @@
-import { OPS, type PDFPageProxy } from 'pdfjs-dist'
+import type { PDFPageProxy } from 'pdfjs-dist'
 import type { StoredImage } from '../lib/images'
 
 /**
- * A PDF does not hold figures; it holds drawing instructions. Getting a
- * picture out of one therefore means finding *where* a page draws an image and
- * then asking pdf.js to render the page normally and cutting that rectangle
- * out of the result.
+ * A PDF has no idea what a figure is. It holds drawing instructions, and the
+ * thing a reader calls "figure 1.2" is whatever those instructions happen to
+ * put in one part of the page.
  *
- * Reading the image objects directly would skip the render, but it would also
- * mean re-implementing colour spaces, soft masks and the tiling that
- * converters use to cut one photograph into forty strips. Cropping what pdf.js
- * has already drawn gets the figure as the reader would actually see it, for
- * the cost of rendering pages that have pictures on them — and only those.
+ * The first version of this looked for images the page painted and cut those
+ * out. That finds photographs and nothing else, which in a textbook is close
+ * to nothing: a diagram of five labelled panels, arrows and boxes is drawn as
+ * vector art, and the one photograph inside it is a small tile in a corner.
+ * Cropping to the tile produced a bicycle where the figure should have been.
+ *
+ * So a figure is located the other way round — by where the *text* isn't. Prose
+ * runs down a page at a steady leading; where it stops for a couple of inches
+ * and picks up again, something else is on the paper. That band is rendered as
+ * the page would print, and the crop is trimmed to the ink actually inside it.
+ * It makes no difference whether the figure is a photograph, a vector drawing,
+ * or both, and the labels and axes around it come along because they were
+ * never separate things to begin with.
  */
 
 export interface PlacedImage {
@@ -20,170 +27,59 @@ export interface PlacedImage {
   image: StoredImage
 }
 
-/** A rectangle in PDF user space, y measured upwards from the bottom. */
-interface Rect {
-  left: number
-  right: number
-  bottom: number
-  top: number
-}
-
-type Matrix = [number, number, number, number, number, number]
-
-const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0]
-
-/** Apply `inner` first, then `outer` — the way a `cm` concatenates onto the CTM. */
-function compose(outer: Matrix, inner: Matrix): Matrix {
-  return [
-    outer[0] * inner[0] + outer[2] * inner[1],
-    outer[1] * inner[0] + outer[3] * inner[1],
-    outer[0] * inner[2] + outer[2] * inner[3],
-    outer[1] * inner[2] + outer[3] * inner[3],
-    outer[0] * inner[4] + outer[2] * inner[5] + outer[4],
-    outer[1] * inner[4] + outer[3] * inner[5] + outer[5]
-  ]
-}
-
-/** An image is painted into the unit square; the CTM says where that lands. */
-function unitSquareBounds(ctm: Matrix): Rect {
-  const xs: number[] = []
-  const ys: number[] = []
-  for (const [u, v] of [
-    [0, 0],
-    [1, 0],
-    [0, 1],
-    [1, 1]
-  ]) {
-    xs.push(ctm[0] * u + ctm[2] * v + ctm[4])
-    ys.push(ctm[1] * u + ctm[3] * v + ctm[5])
-  }
-  return {
-    left: Math.min(...xs),
-    right: Math.max(...xs),
-    bottom: Math.min(...ys),
-    top: Math.max(...ys)
-  }
+/** What the caller already knows about a page's text: one entry per line. */
+export interface TextLine {
+  /** Baseline, in PDF user space — y measured upwards from the bottom. */
+  y: number
+  /** Font size on that line, for guessing how far its glyphs reach. */
+  size: number
 }
 
 /**
- * The ops that paint one image into the current transform's unit square. The
- * `Repeat` and `Group` variants carry their own per-instance placements in
- * their arguments and are used for tiling and for stencil marks — neither is a
- * figure, and reading them off the CTM would put a box in the wrong place.
+ * A break in the text this tall is a figure, a table or a displayed diagram.
+ * Set below about ninety points it starts catching the space around section
+ * headings and displayed equations, which are text and belong in the text.
  */
-const PAINT_OPS = new Set<number>([
-  OPS.paintImageXObject,
-  OPS.paintImageMaskXObject,
-  OPS.paintInlineImageXObject
-])
-
-/** Walk the drawing instructions, tracking the transform, and note every image. */
-function placementsOf(opList: { fnArray: number[]; argsArray: unknown[] }): Rect[] {
-  let ctm = IDENTITY
-  const stack: Matrix[] = []
-  const rects: Rect[] = []
-
-  for (let i = 0; i < opList.fnArray.length; i++) {
-    const op = opList.fnArray[i]
-
-    if (op === OPS.save) {
-      stack.push(ctm)
-    } else if (op === OPS.restore) {
-      ctm = stack.pop() ?? IDENTITY
-    } else if (op === OPS.transform) {
-      ctm = compose(ctm, opList.argsArray[i] as Matrix)
-    } else if (op === OPS.paintFormXObjectBegin) {
-      // A form is its own little content stream with its own matrix on top.
-      stack.push(ctm)
-      const matrix = (opList.argsArray[i] as [Matrix, unknown])[0]
-      if (matrix) ctm = compose(ctm, matrix)
-    } else if (op === OPS.paintFormXObjectEnd) {
-      ctm = stack.pop() ?? IDENTITY
-    } else if (PAINT_OPS.has(op)) {
-      rects.push(unitSquareBounds(ctm))
-    }
-  }
-
-  return rects
-}
-
-/** Smaller than this on a side and it is a logo, a bullet or a rule. */
-const MIN_SIDE_PT = 48
+const INNER_GAP_PT = 100
 
 /**
- * A scientific figure is a picture with writing around it — panel letters,
- * axis numbers, a row of column headings — and that writing is drawn as text,
- * outside the image box. Cutting exactly to the box slices those in half. A
- * small margin takes them along; more than this and the crop starts eating the
- * caption underneath, which is already in the text where it belongs.
+ * Above the first line and below the last there is always a page margin, so
+ * the bar is higher: enough to tell a plate that fills the page from the white
+ * space every page has at its edges.
  */
-const CROP_MARGIN_PT = 10
-/** How close two pieces must be to be treated as one picture cut into strips. */
-const JOIN_SLACK_PT = 2
+const EDGE_GAP_PT = 150
 
-function overlaps(a: Rect, b: Rect): boolean {
-  return (
-    a.left - JOIN_SLACK_PT <= b.right &&
-    b.left - JOIN_SLACK_PT <= a.right &&
-    a.bottom - JOIN_SLACK_PT <= b.top &&
-    b.bottom - JOIN_SLACK_PT <= a.top
-  )
-}
-
-/**
- * Converters routinely slice one photograph into a grid of image objects, and
- * a scanned figure often arrives as a picture plus a separate mask. Pieces that
- * touch are one picture, and are cut out of the page as one.
- */
-function mergeTouching(rects: Rect[]): Rect[] {
-  const merged: Rect[] = []
-
-  for (const rect of rects) {
-    let current = rect
-    let joined = true
-    while (joined) {
-      joined = false
-      for (let i = merged.length - 1; i >= 0; i--) {
-        if (!overlaps(current, merged[i])) continue
-        current = {
-          left: Math.min(current.left, merged[i].left),
-          right: Math.max(current.right, merged[i].right),
-          bottom: Math.min(current.bottom, merged[i].bottom),
-          top: Math.max(current.top, merged[i].top)
-        }
-        merged.splice(i, 1)
-        joined = true
-      }
-    }
-    merged.push(current)
-  }
-
-  return merged
-}
-
-/**
- * Both the scan and the render ask for the *print* rendition of the page, and
- * not because anything is being printed.
- *
- * pdf.js draws a page in chunks, and for its on-screen rendition it schedules
- * each next chunk with `requestAnimationFrame` — which a browser stops firing
- * the moment its window is hidden or covered by another. Reading a long
- * illustrated PDF takes minutes, and nobody watches a progress bar for
- * minutes; the first time the window went behind something, the import stopped
- * where it stood and never came back. The print rendition is scheduled on
- * microtasks instead, so it runs at full speed whether or not anyone is
- * looking. Asking for the same rendition twice also means pdf.js builds the
- * page's drawing instructions once and reuses them for both calls.
- */
-const RENDER_INTENT = { intent: 'print' } as const
+/** Under this in either direction, the ink in a band is a rule or a stray mark. */
+const MIN_FIGURE_PT = 72
 
 /** Render wide enough that a figure still holds up when it is opened full size. */
 const TARGET_PAGE_WIDTH = 1600
 const MAX_SCALE = 3
+
 /** A crop bigger than this is stored as a photograph rather than losslessly. */
 const LOSSLESS_PIXELS = 1_000_000
-/** Enough for a plate on every page of a chapter, and a stop on runaway files. */
-const MAX_IMAGES_PER_PAGE = 8
+
+/** Trimming works off a thumbnail; a few points either way is close enough. */
+const TRIM_WIDTH = 400
+
+/** How far a pixel must be from paper white to count as ink. */
+const INK_THRESHOLD = 12
+
+/**
+ * How much of its own bounding box a figure has to actually cover.
+ *
+ * Books printed from a press carry crop marks: four hairlines in the corners
+ * of every sheet, including the blank ones. They are ink, they sit at the
+ * extremes of the page, and so a blank page trims to a box the size of the
+ * page with almost nothing in it. Measured over this book, those pages came in
+ * at 0.1%, 0.5% and 0.9% coverage, while the emptiest real figure — a line
+ * plot with two axes — was 5.5%, and most are above 8%. Anything under a
+ * fiftieth of its box is a mark on paper, not a picture.
+ */
+const MIN_INK_DENSITY = 0.02
+
+/** A little air, so a glyph at the very edge of the figure isn't shaved. */
+const TRIM_PAD_PT = 4
 
 /**
  * Encoding is asynchronous and, when the browser is short of memory for
@@ -191,6 +87,43 @@ const MAX_IMAGES_PER_PAGE = 8
  * whole book on, so it gets a deadline.
  */
 const ENCODE_TIMEOUT_MS = 20_000
+
+type Matrix = [number, number, number, number, number, number]
+
+/** A horizontal slice of the page, in user space. */
+interface Band {
+  bottom: number
+  top: number
+}
+
+/**
+ * The gaps in a page's text. Lines arrive in reading order, top of the page
+ * first, and each entry is a baseline — so the space between two of them is
+ * the space between where one line's letters stop hanging down and the next
+ * line's start reaching up.
+ */
+function bandsBetweenText(lines: TextLine[], pageHeight: number): Band[] {
+  if (lines.length === 0) return [{ bottom: 0, top: pageHeight }]
+
+  const sorted = [...lines].sort((a, b) => b.y - a.y)
+  const bands: Band[] = []
+
+  for (let i = 1; i < sorted.length; i++) {
+    const above = sorted[i - 1]
+    const below = sorted[i]
+    if (above.y - below.y <= INNER_GAP_PT) continue
+    bands.push({ bottom: below.y + below.size * 0.9, top: above.y - above.size * 0.35 })
+  }
+
+  const first = sorted[0]
+  if (pageHeight - first.y > EDGE_GAP_PT) {
+    bands.push({ bottom: first.y + first.size * 0.9, top: pageHeight })
+  }
+  const last = sorted[sorted.length - 1]
+  if (last.y > EDGE_GAP_PT) bands.push({ bottom: 0, top: last.y - last.size * 0.35 })
+
+  return bands.filter((b) => b.top - b.bottom >= MIN_FIGURE_PT)
+}
 
 async function toBytes(canvas: HTMLCanvasElement): Promise<{ data: Uint8Array; mediaType: string }> {
   const photographic = canvas.width * canvas.height > LOSSLESS_PIXELS
@@ -211,8 +144,73 @@ async function toBytes(canvas: HTMLCanvasElement): Promise<{ data: Uint8Array; m
   return { data: new Uint8Array(await blob.arrayBuffer()), mediaType }
 }
 
+interface Box {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
 /**
- * Cuts figures out of pages, holding on to its two canvases between calls.
+ * Where the ink is. A band is as wide as the page, and a figure rarely is, so
+ * without this every crop would carry the page's margins on both sides.
+ * Measured on a thumbnail: finding an edge to within a couple of points does
+ * not need thirteen megabytes of pixels.
+ */
+function inkBox(source: HTMLCanvasElement, scratch: HTMLCanvasElement): Box | null {
+  const scale = Math.min(1, TRIM_WIDTH / source.width)
+  const width = Math.max(1, Math.round(source.width * scale))
+  const height = Math.max(1, Math.round(source.height * scale))
+
+  scratch.width = width
+  scratch.height = height
+  const ctx = scratch.getContext('2d', { willReadFrequently: true })
+  if (ctx === null) return null
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(source, 0, 0, width, height)
+
+  const { data } = ctx.getImageData(0, 0, width, height)
+  let left = width
+  let right = -1
+  let top = height
+  let bottom = -1
+  let inked = 0
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      const ink =
+        255 - data[i] > INK_THRESHOLD ||
+        255 - data[i + 1] > INK_THRESHOLD ||
+        255 - data[i + 2] > INK_THRESHOLD
+      if (!ink) continue
+      inked++
+      if (x < left) left = x
+      if (x > right) right = x
+      if (y < top) top = y
+      if (y > bottom) bottom = y
+    }
+  }
+
+  if (right < 0) return null
+  if (inked / ((right - left + 1) * (bottom - top + 1)) < MIN_INK_DENSITY) return null
+
+  // Back to the full-resolution canvas, generously: the thumbnail rounded down.
+  const back = 1 / scale
+  const boxLeft = Math.max(0, Math.floor(left * back) - 1)
+  const boxTop = Math.max(0, Math.floor(top * back) - 1)
+  return {
+    left: boxLeft,
+    top: boxTop,
+    width: Math.min(source.width, Math.ceil((right + 1) * back) + 1) - boxLeft,
+    height: Math.min(source.height, Math.ceil((bottom + 1) * back) + 1) - boxTop
+  }
+}
+
+/**
+ * Cuts figures out of pages, holding on to its canvases between calls.
  *
  * This matters more than it looks: a page rendered at reading resolution is
  * around thirteen megabytes of pixels, and a textbook has hundreds of pages.
@@ -222,8 +220,9 @@ async function toBytes(canvas: HTMLCanvasElement): Promise<{ data: Uint8Array; m
  * as at page five hundred.
  */
 export interface FigureCutter {
-  imagesOnPage(
+  figuresOnPage(
     page: PDFPageProxy,
+    lines: TextLine[],
     store: (data: Uint8Array, mediaType: string) => Promise<StoredImage | null>
   ): Promise<PlacedImage[]>
   /** Hand the pixels back; a canvas left at full size stays allocated. */
@@ -231,8 +230,9 @@ export interface FigureCutter {
 }
 
 export function createFigureCutter(): FigureCutter {
-  const pageCanvas = document.createElement('canvas')
+  const bandCanvas = document.createElement('canvas')
   const crop = document.createElement('canvas')
+  const thumb = document.createElement('canvas')
 
   const release = (canvas: HTMLCanvasElement): void => {
     canvas.width = 0
@@ -241,77 +241,80 @@ export function createFigureCutter(): FigureCutter {
 
   return {
     dispose() {
-      release(pageCanvas)
+      release(bandCanvas)
       release(crop)
+      release(thumb)
     },
 
-    async imagesOnPage(page, store) {
+    async figuresOnPage(page, lines, store) {
       const base = page.getViewport({ scale: 1 })
-      const pageArea = base.width * base.height
-
-      const opList = await page.getOperatorList(RENDER_INTENT)
-      const wanted = mergeTouching(placementsOf(opList))
-        .filter((r) => {
-          const width = r.right - r.left
-          const height = r.top - r.bottom
-          if (width < MIN_SIDE_PT || height < MIN_SIDE_PT) return false
-          // A whole-page image is the paper itself — a background wash, a
-          // border, a watermark — not something anybody set out to look at.
-          return width * height <= pageArea * 0.95
-        })
-        .sort((a, b) => b.top - a.top)
-        .slice(0, MAX_IMAGES_PER_PAGE)
-
-      // Rendering is the expensive half, and a page with no figures never pays it.
-      if (wanted.length === 0) return []
+      const bands = bandsBetweenText(lines, base.height)
+      if (bands.length === 0) return []
 
       const scale = Math.min(MAX_SCALE, Math.max(1, TARGET_PAGE_WIDTH / base.width))
       const viewport = page.getViewport({ scale })
+      const [, , , , , vf] = viewport.transform as Matrix
 
-      pageCanvas.width = Math.ceil(viewport.width)
-      pageCanvas.height = Math.ceil(viewport.height)
-      const pageCtx = pageCanvas.getContext('2d')
-      if (pageCtx === null) return []
-
-      // A PDF page is a sheet of paper; without this the parts of a figure that
-      // are simply unpainted come out transparent, and then black.
-      pageCtx.fillStyle = '#ffffff'
-      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
-      await page.render({ canvasContext: pageCtx, viewport, ...RENDER_INTENT }).promise
-
-      const [va, vb, vc, vd, ve, vf] = viewport.transform as Matrix
       const placed: PlacedImage[] = []
 
-      for (const rect of wanted) {
-        const padded = {
-          left: rect.left - CROP_MARGIN_PT,
-          right: rect.right + CROP_MARGIN_PT,
-          bottom: rect.bottom - CROP_MARGIN_PT,
-          top: rect.top + CROP_MARGIN_PT
-        }
-        const xs = [padded.left, padded.right].flatMap((x) =>
-          [padded.bottom, padded.top].map((y) => va * x + vc * y + ve)
+      for (const band of bands) {
+        // Only this slice of the page is rasterised. Most figures are a
+        // fraction of a page, and drawing the other four fifths of it to throw
+        // them away is the single most expensive thing this could do.
+        const deviceTop = Math.max(0, Math.floor(vf - band.top * scale))
+        const deviceBottom = Math.min(
+          Math.ceil(viewport.height),
+          Math.ceil(vf - band.bottom * scale)
         )
-        const ys = [padded.left, padded.right].flatMap((x) =>
-          [padded.bottom, padded.top].map((y) => vb * x + vd * y + vf)
-        )
-
-        const left = Math.max(0, Math.floor(Math.min(...xs)))
-        const top = Math.max(0, Math.floor(Math.min(...ys)))
-        const width = Math.min(pageCanvas.width - left, Math.ceil(Math.max(...xs) - left))
-        const height = Math.min(pageCanvas.height - top, Math.ceil(Math.max(...ys) - top))
+        const width = Math.ceil(viewport.width)
+        const height = deviceBottom - deviceTop
         if (width < 1 || height < 1) continue
 
-        crop.width = width
-        crop.height = height
+        bandCanvas.width = width
+        bandCanvas.height = height
+        const ctx = bandCanvas.getContext('2d')
+        if (ctx === null) continue
+
+        // A PDF page is a sheet of paper; without this the parts of a figure
+        // that are simply unpainted come out transparent, and then black.
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, width, height)
+
+        try {
+          await page.render({
+            canvasContext: ctx,
+            viewport,
+            // Slide the page up so the band lands at the canvas origin.
+            transform: [1, 0, 0, 1, 0, -deviceTop],
+            ...RENDER_INTENT
+          }).promise
+        } catch {
+          continue
+        }
+
+        const box = inkBox(bandCanvas, thumb)
+        if (box === null) continue
+
+        const pad = Math.round(TRIM_PAD_PT * scale)
+        const left = Math.max(0, box.left - pad)
+        const top = Math.max(0, box.top - pad)
+        const cropWidth = Math.min(width - left, box.width + pad * 2)
+        const cropHeight = Math.min(height - top, box.height + pad * 2)
+        const minSide = MIN_FIGURE_PT * scale
+        if (cropWidth < minSide || cropHeight < minSide) continue
+
+        crop.width = cropWidth
+        crop.height = cropHeight
         const cropCtx = crop.getContext('2d')
         if (cropCtx === null) continue
-        cropCtx.drawImage(pageCanvas, left, top, width, height, 0, 0, width, height)
+        cropCtx.drawImage(bandCanvas, left, top, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight)
 
         try {
           const { data, mediaType } = await toBytes(crop)
           const image = await store(data, mediaType)
-          if (image !== null) placed.push({ y: rect.top, image })
+          // Where the ink actually starts, so the figure lands between the
+          // right two paragraphs rather than at the top of the empty band.
+          if (image !== null) placed.push({ y: band.top - top / scale, image })
         } catch {
           // One figure that won't come out is not a reason to lose the page.
         }
@@ -321,3 +324,18 @@ export function createFigureCutter(): FigureCutter {
     }
   }
 }
+
+/**
+ * The render asks for the *print* rendition of the page, and not because
+ * anything is being printed.
+ *
+ * pdf.js draws a page in chunks, and for its on-screen rendition it schedules
+ * each next chunk with `requestAnimationFrame` — which a browser stops firing
+ * the moment its window is hidden or covered by another. Reading a long
+ * illustrated PDF takes minutes, and nobody watches a progress bar for
+ * minutes; the first time the window went behind something, the import stopped
+ * where it stood and never came back. The print rendition is scheduled on
+ * microtasks instead, so it runs at full speed whether or not anyone is
+ * looking.
+ */
+const RENDER_INTENT = { intent: 'print' } as const
