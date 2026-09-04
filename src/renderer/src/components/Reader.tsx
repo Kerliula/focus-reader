@@ -343,16 +343,23 @@ export function Reader({
 
   const wordsRead = (sectionStats.offsets[chapterIndex] ?? 0) + wordsIntoChapter
   useEffect(() => {
+    const nextProgress: Progress = {
+      chapterIndex,
+      unitIndex: safeUnitIndex,
+      wordsRead,
+      minutesRead,
+      updatedAt: Date.now()
+    }
     const timer = window.setTimeout(() => {
-      onProgress({
-        chapterIndex,
-        unitIndex: safeUnitIndex,
-        wordsRead,
-        minutesRead,
-        updatedAt: Date.now()
-      })
+      onProgress(nextProgress)
     }, 700)
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      // Leaving quickly should still establish a resume point. Cleanup also
+      // runs when the active unit changes, which safely writes the last unit
+      // before the next delayed save takes over.
+      onProgress(nextProgress)
+    }
   }, [chapterIndex, safeUnitIndex, wordsRead, minutesRead, onProgress])
 
   const bookFraction = sectionStats.total === 0 ? 0 : wordsRead / sectionStats.total

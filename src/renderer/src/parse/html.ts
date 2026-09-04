@@ -46,28 +46,58 @@ function hasNestedBlock(el: Element): boolean {
   return false
 }
 
+/** Pick the highest-density candidate from a `srcset` attribute. */
+function bestSrcset(value: string): string {
+  let best = ''
+  let bestScore = -1
+
+  for (const candidate of value.split(',')) {
+    const parts = candidate.trim().split(/\s+/)
+    const href = parts[0] ?? ''
+    if (href === '') continue
+
+    const descriptor = parts[1] ?? ''
+    const match = descriptor.match(/^(\d+(?:\.\d+)?)(w|x)$/i)
+    // Width descriptors are directly comparable. Density descriptors are
+    // weighted above width values because they describe a deliberate retina
+    // rendition rather than a layout hint.
+    const score = match
+      ? Number(match[1]) * (match[2].toLowerCase() === 'x' ? 10000 : 1)
+      : 0
+    if (score >= bestScore) {
+      best = href
+      bestScore = score
+    }
+  }
+
+  return best
+}
+
 /**
  * Where a picture actually lives. Half the web ships a placeholder in `src`
  * and the real file in a data attribute, so that the browser can decide later
  * whether the reader ever scrolls far enough to want it; reading only `src`
- * would collect a page of grey squares.
+ * would collect a page of grey squares. Prefer an explicit full-size source,
+ * then the largest `srcset` candidate, before falling back to `src`.
  */
 function hrefOf(el: Element): string {
   const src = el.getAttribute('src') ?? ''
-  // A tiny inline data: URI is the placeholder, not the picture.
   const usableSrc = src !== '' && !(src.startsWith('data:') && src.length < 512)
-  if (usableSrc) return src
 
-  for (const name of ['data-src', 'data-original', 'data-lazy-src', 'data-full-src']) {
+  for (const name of ['data-full-src', 'data-original']) {
     const value = el.getAttribute(name)
     if (value) return value
   }
 
-  // A srcset is a list of "url width" pairs; the first is as good as any, and
-  // the largest is usually far bigger than a reading column can use.
-  const srcset = el.getAttribute('srcset') ?? el.getAttribute('data-srcset') ?? ''
-  const first = srcset.split(',')[0]?.trim().split(/\s+/)[0] ?? ''
-  if (first !== '') return first
+  const srcset = bestSrcset(el.getAttribute('srcset') ?? el.getAttribute('data-srcset') ?? '')
+  if (srcset !== '') return srcset
+
+  for (const name of ['data-src', 'data-lazy-src']) {
+    const value = el.getAttribute(name)
+    if (value) return value
+  }
+
+  if (usableSrc) return src
 
   return (
     el.getAttributeNS(XLINK_NAMESPACE, 'href') ??

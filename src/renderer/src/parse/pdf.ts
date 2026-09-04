@@ -154,16 +154,20 @@ function linesToBlocks(lines: Line[], idPrefix: string, startIndex: number): Anc
 function interleave(blocks: AnchoredBlock[], images: PlacedImage[], idPrefix: string): Block[] {
   if (images.length === 0) return blocks.map((b) => b.block)
 
+  // Figure extraction normally returns this order, but keeping the merge
+  // defensive makes placement correct even if a future extractor discovers
+  // edge figures separately from inline ones.
+  const orderedImages = [...images].sort((a, b) => b.y - a.y)
   const out: Block[] = []
   let next = 0
 
   const take = (until: number): void => {
-    while (next < images.length && images[next].y >= until) {
+    while (next < orderedImages.length && orderedImages[next].y >= until) {
       out.push({
         id: `${idPrefix}-i${next}-${out.length}`,
         type: 'image',
         text: '',
-        image: { ...images[next].image, alt: '' }
+        image: { ...orderedImages[next].image, alt: '' }
       })
       next++
     }

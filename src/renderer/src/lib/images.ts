@@ -50,21 +50,39 @@ export function isImageType(mediaType: string): boolean {
  * books, common enough in web pages that ignoring it loses real diagrams.
  */
 export function readDataUri(uri: string): { data: Uint8Array; mediaType: string } | null {
-  const head = uri.match(/^data:([^;,]*)(;base64)?,/i)
-  if (!head) return null
+  if (!uri.toLowerCase().startsWith('data:')) return null
+  const comma = uri.indexOf(',')
+  if (comma === -1) return null
 
-  const mediaType = head[1].toLowerCase() || 'text/plain'
+  const metadata = uri.slice(5, comma).split(';')
+  const mediaType = (metadata.shift() ?? '').toLowerCase() || 'text/plain'
   if (!isImageType(mediaType)) return null
-  const body = uri.slice(head[0].length)
+  const body = uri.slice(comma + 1)
+  const base64 = metadata.some((part) => part.toLowerCase() === 'base64')
 
   try {
-    if (head[2]) {
-      const binary = atob(body)
+    if (base64) {
+      const binary = atob(body.replace(/\s/g, ''))
       const data = new Uint8Array(binary.length)
       for (let i = 0; i < binary.length; i++) data[i] = binary.charCodeAt(i)
       return { data, mediaType }
     }
-    return { data: new TextEncoder().encode(decodeURIComponent(body)), mediaType }
+
+    // Percent-escaped data URLs encode bytes, not Unicode code points. Using
+    // TextEncoder on decodeURIComponent would turn `%89` into two UTF-8 bytes
+    // and corrupt binary images. Preserve escaped bytes and UTF-8 encode only
+    // the literal (normally SVG/XML) parts.
+    const data: number[] = []
+    for (let i = 0; i < body.length; i++) {
+      if (body[i] === '%' && /^[0-9a-f]{2}$/i.test(body.slice(i + 1, i + 3))) {
+        data.push(Number.parseInt(body.slice(i + 1, i + 3), 16))
+        i += 2
+        continue
+      }
+      const literal = body[i]
+      data.push(...new TextEncoder().encode(literal))
+    }
+    return { data: new Uint8Array(data), mediaType }
   } catch {
     return null
   }

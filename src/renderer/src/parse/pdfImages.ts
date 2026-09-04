@@ -53,11 +53,8 @@ const EDGE_GAP_PT = 150
 const MIN_FIGURE_PT = 72
 
 /** Render wide enough that a figure still holds up when it is opened full size. */
-const TARGET_PAGE_WIDTH = 1600
-const MAX_SCALE = 3
-
-/** A crop bigger than this is stored as a photograph rather than losslessly. */
-const LOSSLESS_PIXELS = 1_000_000
+const TARGET_PAGE_WIDTH = 2400
+const MAX_SCALE = 4
 
 /** Trimming works off a thumbnail; a few points either way is close enough. */
 const TRIM_WIDTH = 400
@@ -122,12 +119,19 @@ function bandsBetweenText(lines: TextLine[], pageHeight: number): Band[] {
   const last = sorted[sorted.length - 1]
   if (last.y > EDGE_GAP_PT) bands.push({ bottom: 0, top: last.y - last.size * 0.35 })
 
-  return bands.filter((b) => b.top - b.bottom >= MIN_FIGURE_PT)
+  // Edge bands are discovered after inner gaps, but the caller merges these
+  // with text blocks in top-to-bottom order. Keep that ordering explicit so a
+  // plate above the first paragraph cannot be inserted after figures below it.
+  return bands
+    .filter((b) => b.top - b.bottom >= MIN_FIGURE_PT)
+    .sort((a, b) => b.top - a.top)
 }
 
 async function toBytes(canvas: HTMLCanvasElement): Promise<{ data: Uint8Array; mediaType: string }> {
-  const photographic = canvas.width * canvas.height > LOSSLESS_PIXELS
-  const mediaType = photographic ? 'image/jpeg' : 'image/png'
+  // PDF figures are often vector drawings containing small labels and thin
+  // lines. Choosing JPEG from pixel area alone turns those into fuzzy blocks;
+  // PNG keeps the rendered PDF lossless and compresses flat line art well.
+  const mediaType = 'image/png'
 
   const blob = await new Promise<Blob | null>((resolve) => {
     const timer = setTimeout(() => resolve(null), ENCODE_TIMEOUT_MS)
@@ -137,7 +141,7 @@ async function toBytes(canvas: HTMLCanvasElement): Promise<{ data: Uint8Array; m
         resolve(result)
       },
       mediaType,
-      photographic ? 0.92 : undefined
+      undefined
     )
   })
   if (blob === null) throw new Error('Could not read the rendered figure back.')

@@ -150,14 +150,14 @@ leaves the main process — the renderer only ever receives results.
 
   Pulling figures out of a PDF means rendering, so the first open of a heavily
   illustrated one takes longer than it used to: a 500-page textbook with a figure
-  on nearly every page took a couple of minutes and produced 226 of them, at 41MB
-  on disk. Only the band a figure sits in is rasterised, which is a fraction of a
-  page and the reason this is minutes rather than the quarter of an hour it would
-  otherwise be. It happens once — the result is cached like everything else, the
-  library says what it is doing while it works, and it carries on whether or not
-  the window is in front. Adding illustrations changed what the parsers produce,
-  so books already in the library are read once more the next time they are
-  opened.
+  on nearly every page took a couple of minutes and produced 226 of them. Only
+  the band a figure sits in is rasterised, at a resolution suitable for the
+  full-size viewer, and PDF figures are kept as lossless PNGs so labels and thin
+  vector lines stay sharp. It happens once — the result is cached like
+  everything else, the library says what it is doing while it works, and it
+  carries on whether or not the window is in front. Adding illustrations changed
+  what the parsers produce, so books already in the library are read once more
+  the next time they are opened.
 
 ## Sample books
 

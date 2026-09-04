@@ -35,7 +35,7 @@ export interface Chapter {
  * books already in the library are read again instead of being served from a
  * cache that predates the change.
  */
-export const PARSE_VERSION = 2
+export const PARSE_VERSION = 3
 
 /** A fully parsed book, cached to disk so re-opening is instant. */
 export interface BookDoc {
