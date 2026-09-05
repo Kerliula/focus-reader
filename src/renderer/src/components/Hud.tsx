@@ -3,6 +3,9 @@ import { memo, useMemo } from 'react'
 interface Props {
   chapterWords: number
   wordsIntoChapter: number
+  /** Which page of the section the spotlight is on, and how many there are. */
+  pageIndex: number
+  pageCount: number
   /** Word count of every section, in order. */
   sectionWords: number[]
   /** Their sum — already computed by the reader, so don't add it up again. */
@@ -21,6 +24,8 @@ interface Props {
 export const Hud = memo(function Hud({
   chapterWords,
   wordsIntoChapter,
+  pageIndex,
+  pageCount,
   sectionWords,
   totalWords,
   sectionPosition,
@@ -46,7 +51,9 @@ export const Hud = memo(function Hud({
   return (
     <footer className="hud">
       <div className="meter">
-        <span className="meter-label">This section</span>
+        <span className="meter-label">
+          Page {Math.min(pageIndex + 1, Math.max(1, pageCount))} of {Math.max(1, pageCount)}
+        </span>
         <div className="track">
           <span className="track-fill" style={{ width: `${sectionFraction * 100}%` }} />
         </div>

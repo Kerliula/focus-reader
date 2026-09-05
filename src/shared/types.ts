@@ -182,6 +182,14 @@ export interface KeyTestResult {
 export type Theme = 'dark' | 'sepia' | 'light'
 export type Granularity = 'sentence' | 'paragraph'
 
+/**
+ * How big a page is drawn, in the sense a PDF viewer means it: the page is
+ * typeset once at its own size, and zoom only scales the picture of it. `page`
+ * fits the whole sheet in the window, `width` fits its width, a number is a
+ * percentage.
+ */
+export type Zoom = 'page' | 'width' | number
+
 export interface Settings {
   theme: Theme
   fontFamily: string
@@ -203,6 +211,8 @@ export interface Settings {
   quizThinking: boolean
   /** Two lines of orientation at the top of each new section. */
   sectionPreview: boolean
+  /** How the sheets are scaled to the window. */
+  zoom: Zoom
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -220,5 +230,6 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
   quizAfterSection: true,
   quizThinking: true,
-  sectionPreview: true
+  sectionPreview: true,
+  zoom: 'page'
 }
