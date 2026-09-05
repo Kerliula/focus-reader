@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type {
@@ -9,6 +9,7 @@ import type {
   Progress,
   SavedWord,
   Settings,
+  Subject,
   Thought
 } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
@@ -94,8 +95,15 @@ export const store = {
 
   async upsertBook(meta: BookMeta): Promise<BookMeta[]> {
     return update<BookMeta[], BookMeta[]>('library.json', [], (library) => {
+      // Re-adding a book that is already filed must not take it off its shelf.
+      // An import builds its meta from the file and knows nothing about
+      // subjects, so an absent one means "leave it where it was" — only an
+      // explicit null unfiles a book.
+      const existing = library.find((b) => b.id === meta.id)
+      const subjectId = meta.subjectId === undefined ? (existing?.subjectId ?? null) : meta.subjectId
+
       const next = library.filter((b) => b.id !== meta.id)
-      next.unshift(meta)
+      next.unshift({ ...meta, subjectId })
       return [next, next]
     })
   },
@@ -114,6 +122,73 @@ export const store = {
     await fs.rm(path.join(cacheDir(), `${id}.json`), { force: true })
     await fs.rm(assetDir(id), { force: true, recursive: true })
     return library
+  },
+
+  async getSubjects(): Promise<Subject[]> {
+    return readJson<Subject[]>('subjects.json', [])
+  },
+
+  /**
+   * Naming a subject that already exists hands back the one that is there:
+   * typing "Statistics" a second time should file the book, not leave two
+   * shelves of the same name to drift apart.
+   */
+  async addSubject(name: string): Promise<{ subjects: Subject[]; subject: Subject }> {
+    const clean = name.trim().slice(0, 60)
+    if (clean === '') throw new Error('A subject needs a name.')
+
+    return update<Subject[], { subjects: Subject[]; subject: Subject }>(
+      'subjects.json',
+      [],
+      (subjects) => {
+        const existing = subjects.find((s) => s.name.toLowerCase() === clean.toLowerCase())
+        if (existing) return [subjects, { subjects, subject: existing }]
+
+        const subject: Subject = {
+          id: randomBytes(8).toString('hex'),
+          name: clean,
+          createdAt: Date.now()
+        }
+        const next = [...subjects, subject]
+        return [next, { subjects: next, subject }]
+      }
+    )
+  },
+
+  async renameSubject(id: string, name: string): Promise<Subject[]> {
+    const clean = name.trim().slice(0, 60)
+    if (clean === '') throw new Error('A subject needs a name.')
+
+    return update<Subject[], Subject[]>('subjects.json', [], (subjects) => {
+      const next = subjects.map((s) => (s.id === id ? { ...s, name: clean } : s))
+      return [next, next]
+    })
+  },
+
+  /**
+   * Dropping a subject unfiles the books that were on it. Deleting the shelf
+   * is not a reason to delete what was standing on it, and a course you have
+   * finished is exactly when you want the shelf gone and the books kept.
+   */
+  async removeSubject(id: string): Promise<{ subjects: Subject[]; library: BookMeta[] }> {
+    const subjects = await update<Subject[], Subject[]>('subjects.json', [], (current) => {
+      const next = current.filter((s) => s.id !== id)
+      return [next, next]
+    })
+
+    const library = await update<BookMeta[], BookMeta[]>('library.json', [], (current) => {
+      const next = current.map((b) => (b.subjectId === id ? { ...b, subjectId: null } : b))
+      return [next, next]
+    })
+
+    return { subjects, library }
+  },
+
+  async setBookSubject(bookId: string, subjectId: string | null): Promise<BookMeta[]> {
+    return update<BookMeta[], BookMeta[]>('library.json', [], (library) => {
+      const next = library.map((b) => (b.id === bookId ? { ...b, subjectId } : b))
+      return [next, next]
+    })
   },
 
   async getProgress(id: string): Promise<Progress | null> {

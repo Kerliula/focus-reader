@@ -8,6 +8,12 @@
   --accent-soft: rgba(224, 164, 88, 0.16);
   --line: rgba(236, 227, 213, 0.12);
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  /* The desk the pages lie on, and the paper itself. */
+  --viewer: #0c0a08;
+  --paper: #201b16;
+  --sheet-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 14px 36px rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
 
@@ -21,6 +27,11 @@
   --accent-soft: rgba(164, 99, 43, 0.14);
   --line: rgba(59, 50, 39, 0.16);
   --shadow: 0 24px 60px rgba(90, 70, 40, 0.22);
+  --viewer: #d8cbb0;
+  --paper: #fbf4e6;
+  --sheet-shadow:
+    0 1px 2px rgba(90, 70, 40, 0.25),
+    0 14px 36px rgba(90, 70, 40, 0.28);
   color-scheme: light;
 }
 
@@ -34,6 +45,11 @@
   --accent-soft: rgba(154, 91, 44, 0.12);
   --line: rgba(33, 32, 30, 0.13);
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.14);
+  --viewer: #d6d5d2;
+  --paper: #ffffff;
+  --sheet-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 14px 36px rgba(0, 0, 0, 0.2);
   color-scheme: light;
 }
 
@@ -292,6 +308,8 @@ kbd {
 
 .book-pct {
   font-size: 12px;
+  /* The subject pill sits in this corner. */
+  padding-right: 96px;
 }
 
 .remove {
@@ -323,6 +341,229 @@ kbd {
   pointer-events: none;
 }
 
+/* ---------- subjects ---------- */
+
+/* The shelf you are standing at. Always visible, even with no subjects yet —
+   it is how the grouping is found in the first place. */
+.subject-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 13px;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.chip-count {
+  font-size: 11px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.new {
+  border-style: dashed;
+}
+
+.chip-input {
+  width: 170px;
+  padding: 6px 13px;
+  border-radius: 99px;
+  border: 1px solid var(--accent);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.subject-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.subject-head h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.subject-rename {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 19px;
+  font-weight: 700;
+  outline: none;
+}
+
+.subject-head-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Asked once and waiting for the second click. */
+.subject-head-actions .armed {
+  color: #e59182;
+}
+
+.shelf-group {
+  margin-bottom: 30px;
+}
+
+.shelf-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.shelf-heading button {
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  transition: color 0.15s ease;
+}
+
+.shelf-heading button:hover {
+  color: var(--accent);
+}
+
+/* Sits in the card's empty bottom-right corner, and stays out of the way until
+   you are on the card — like the remove button. Which shelf a book is on is
+   already said by the heading above it or the chip you clicked to get here, so
+   this is a control rather than a label, and a label repeated three times to a
+   row is just noise. */
+.subject-pill {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  max-width: 58%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text-dim);
+  font-size: 11px;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.shelf li:hover .subject-pill,
+.subject-pill:focus-visible,
+.subject-pill.open {
+  opacity: 1;
+}
+
+.subject-pill:hover,
+.subject-pill.open {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Opens upward, over its own card: the pill is at the bottom of one. */
+.subject-menu {
+  position: absolute;
+  right: 12px;
+  bottom: 38px;
+  z-index: 8;
+  min-width: 196px;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.subject-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.subject-menu button:hover {
+  background: var(--bg-sunk);
+}
+
+.subject-menu .tick {
+  flex: none;
+  width: 12px;
+  color: var(--accent);
+}
+
+.subject-menu-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.subject-menu hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 6px 4px;
+}
+
+.subject-menu input {
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
 /* ---------- reader ---------- */
 
 .reader {
@@ -331,16 +572,22 @@ kbd {
   height: 100%;
 }
 
+/* A viewer's toolbar: where you are on the left, the page and zoom in the
+   middle, your things on the right. */
 .reader-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 34px 20px 12px 86px;
+  gap: 8px;
+  padding: 30px 14px 8px 86px;
   -webkit-app-region: drag;
   border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  z-index: 4;
 }
 
-.reader-bar button {
+.reader-bar button,
+.reader-bar select,
+.reader-bar input {
   -webkit-app-region: no-drag;
 }
 
@@ -348,7 +595,7 @@ kbd {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   padding: 6px 10px;
   border-radius: 9px;
@@ -373,20 +620,230 @@ kbd {
   flex-shrink: 0;
 }
 
+.reader-bar-centre {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding: 2px 4px;
+  border-radius: 10px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.reader-bar-centre .ghost.tiny {
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.bar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: var(--line);
+}
+
+.page-box {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 6px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-box input {
+  width: 3.2em;
+  padding: 3px 6px;
+  text-align: right;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.page-box input:focus {
+  border-color: var(--accent);
+}
+
+.page-box-of {
+  white-space: nowrap;
+}
+
+.zoom-select {
+  appearance: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.zoom-select:hover {
+  background: var(--bg-elev);
+}
+
+.zoom-select:focus {
+  border-color: var(--accent);
+}
+
 .reader-bar-right {
   display: flex;
+  flex: 1 1 0;
+  justify-content: flex-end;
   gap: 4px;
 }
 
-.page-scroll {
+/* ---- the desk --------------------------------------------------------------- */
+
+.viewer-wrap {
+  position: relative;
   flex: 1;
-  overflow-y: auto;
-  padding: 12vh 24px 46vh;
+  min-height: 0;
+  display: flex;
 }
 
-.page {
+.viewer {
+  flex: 1;
+  min-width: 0;
+  /* Zoomed past the window, a page scrolls sideways like any viewer's would. */
+  overflow: auto;
+  padding: 18px 40px 18px 56px;
+  background: var(--viewer);
+  scrollbar-gutter: stable;
+}
+
+.sheets {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   margin: 0 auto;
+  /* The sheets end with the section, not the window: room to scroll the last
+     one clear of the bottom edge. */
+  padding-bottom: 30vh;
+}
+
+/* ---- a sheet ---------------------------------------------------------------- */
+
+.sheet {
+  position: relative;
+  flex: none;
+  background: var(--paper);
+  box-shadow: var(--sheet-shadow);
+  border-radius: 2px;
+  /* Only the sheets near the window are laid out; the box has an exact size
+     regardless, so the scrollbar never lies. */
+  content-visibility: auto;
+}
+
+.sheet-inner {
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   color: var(--text);
+}
+
+/* The page you are on has a ribbon down its spine. */
+.sheet.current::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 2px 0 0 2px;
+  background: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.sheet.read {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
+    var(--sheet-shadow);
+}
+
+.sheet-head,
+.sheet-folio {
+  flex: none;
+  display: flex;
+  align-items: center;
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.sheet-head {
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sheet-running {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sheet-running.muted {
+  flex-shrink: 3;
+  opacity: 0.7;
+}
+
+.sheet-folio {
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.folio-tick {
+  color: var(--accent);
+  font-size: 11px;
+  animation: tick-in 0.35s ease-out;
+}
+
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+/* The text block. Its size is fixed by the layout; the margins are the head
+   and folio bands above and below and the sheet's own width either side. */
+.sheet-body {
+  flex: none;
+  margin: 0 auto;
+}
+
+/* The first thing on a page sits on the top line. In the measuring pass it
+   was preceded by whatever came before it, so its top margin is already
+   counted there and must not be counted again here. */
+.sheet-body > :first-child {
+  margin-top: 0;
+}
+
+/* The same block, measured off screen at the same width. */
+.measure {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  visibility: hidden;
+  pointer-events: none;
+  /* Height is what is being found out. */
+  height: auto !important;
 }
 
 .page-chapter-title {
@@ -400,13 +857,6 @@ kbd {
 
 .blk {
   margin: 0 0 1.15em;
-
-  /* A long section is mostly off-screen. Skipping layout and paint for the
-     paragraphs you can't see keeps opening a chapter fast; `auto` lets the
-     browser remember each block's real height once it has been rendered, so
-     the scrollbar stays honest. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 4em;
 }
 
 .blk-h1,
@@ -465,34 +915,19 @@ kbd {
 
 .blk-image {
   margin: 1.8em 0;
-
-  /* The rest of the page skips layout for what's off-screen; a figure must not.
-     Its height is the one thing on the page the browser can only learn by
-     loading the file, and guessing it wrong moves the line you're reading. */
-  content-visibility: visible;
-  contain-intrinsic-size: none;
 }
 
-/* A column sized for prose is too narrow for a diagram with six panels in it.
-   A figure is allowed out past the text, centred on the same middle, as far as
-   the window has room for — and no further, so the page never scrolls sideways. */
+/* Centred on the text block, never wider than it: this is a page now. */
 .unit-figure {
   display: block;
-  padding: 6px;
   width: max-content;
-  max-width: min(calc(100vw - 96px), 1100px);
-  position: relative;
-  left: 50%;
-  translate: -50% 0;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 6px;
 }
 
 .unit-figure img {
   display: block;
-  max-width: 100%;
-  /* Tall plates should fit on screen rather than needing to be scrolled past. */
-  max-height: 78vh;
-  width: auto;
-  height: auto;
   border-radius: 3px;
   cursor: zoom-in;
   background: var(--bg-sunk);
@@ -539,6 +974,75 @@ kbd {
 
 .bionic {
   font-weight: 700;
+}
+
+/* ---- page rail --------------------------------------------------------------- */
+
+/* One mark per page of the section, down the left of the desk. */
+.rail {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 22px;
+  align-items: stretch;
+}
+
+.rail-seg {
+  flex: 1 1 0;
+  min-height: 3px;
+  padding: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-dim) 28%, transparent);
+  transition:
+    background 0.25s ease,
+    transform 0.15s ease;
+}
+
+.rail-seg:hover {
+  transform: scaleX(1.25);
+  background: var(--text-dim);
+}
+
+.rail-seg.read {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.rail-seg.on {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.rail-bar {
+  position: relative;
+  flex: 1;
+  width: 8px;
+  margin: 0 auto;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-dim) 28%, transparent);
+  cursor: pointer;
+}
+
+.rail-fill {
+  position: absolute;
+  inset: 0 0 auto 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.rail-mark {
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* ---- word lookup ---------------------------------------------------------- */
@@ -629,26 +1133,21 @@ kbd {
 
 .section-preview {
   position: relative;
-  /* Held from the first render so the text below never jumps once it loads. */
+  /* Held from the first render so the pages below never jump once it loads. */
   min-height: 5.4em;
-  margin: 0 0 2.4em;
   padding: 14px 40px 14px 16px;
   border-left: 2px solid var(--accent);
   border-radius: 0 10px 10px 0;
-  background: var(--accent-soft);
+  background: var(--bg-elev);
+  box-shadow: var(--sheet-shadow);
   font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 0.72em;
+  font-size: 14px;
   line-height: 1.55;
-  /* It sits inside the dimmed page, but it is the one thing you should read. */
-  opacity: 1;
-}
-
-.dim .section-preview {
+  /* A slip laid on top of the first page: the one thing to read before it. */
   opacity: 1;
 }
 
 .section-preview.waiting {
-  background: transparent;
   border-left-color: var(--line);
 }
 
@@ -802,11 +1301,30 @@ kbd {
 }
 
 .page-end {
-  margin-top: 3em;
-  padding-top: 1.6em;
-  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 26px 20px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
   font-family: -apple-system, sans-serif;
   font-size: 15px;
+  text-align: center;
+}
+
+.page-end-kicker {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.page-end .primary {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- HUD ---------- */
@@ -814,9 +1332,9 @@ kbd {
 .hud {
   border-top: 1px solid var(--line);
   background: var(--bg-elev);
-  padding: 10px 18px 12px;
+  padding: 8px 18px 10px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -834,7 +1352,8 @@ kbd {
   color: var(--text-dim);
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: 172px;
+  min-width: 150px;
+  font-variant-numeric: tabular-nums;
 }
 
 .meter-value {
@@ -1156,6 +1675,70 @@ kbd {
 
 .setting-row input[type='password']:focus {
   border-color: var(--accent);
+}
+
+/* ---------- naming a new book ---------- */
+
+.book-details {
+  position: fixed;
+  z-index: 21;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 90vw);
+  padding: 24px 26px 22px;
+  border-radius: 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.book-details-source {
+  margin: -6px 0 16px;
+  font-size: 12.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.book-details-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.book-details-field span {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.book-details-field input {
+  width: 100%;
+  font-size: 17px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+}
+
+.book-details-field input:focus {
+  border-color: var(--accent);
+}
+
+.book-details-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.book-details-actions {
+  justify-content: flex-end;
 }
 
 /* ---------- quiz ---------- */

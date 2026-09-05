@@ -136,7 +136,7 @@ export function SettingsPanel({
             </select>
           </Row>
 
-          <Row label={`Text size — ${settings.fontSize}px`} hint="+ / −">
+          <Row label={`Text size — ${settings.fontSize}px`} hint="how much fits on a page">
             <input
               type="range"
               min={14}
@@ -327,7 +327,12 @@ export function SettingsPanel({
                 <kbd>Space</kbd> / <kbd>→</kbd> next · <kbd>←</kbd> back
               </li>
               <li>
-                <kbd>[</kbd> <kbd>]</kbd> previous / next section
+                <kbd>PgDn</kbd> / <kbd>PgUp</kbd> turn the page · <kbd>[</kbd> <kbd>]</kbd> previous /
+                next section
+              </li>
+              <li>
+                <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>0</kbd> fit the page · <kbd>F</kbd> fit the
+                width
               </li>
               <li>
                 <kbd>B</kbd> bionic · <kbd>D</kbd> dim · <kbd>G</kbd> unit size

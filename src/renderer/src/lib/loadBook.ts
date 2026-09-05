@@ -55,26 +55,40 @@ export async function loadBook(meta: BookMeta): Promise<BookDoc> {
   return doc
 }
 
-/** Add a file — or an article URL — to the library, parsing it once up front. */
-export async function importBook(path: string, format: BookFormat): Promise<BookMeta> {
+/** A book read and ready to be added, once its name has been agreed on. */
+export interface PreparedBook {
+  meta: BookMeta
+  /** Already on the shelf: nothing to ask, nothing to add. */
+  existing: boolean
+}
+
+/**
+ * Read a file — or an article URL — and draft its library entry, without adding
+ * it. The title and author come from the file, and files are often wrong about
+ * both: a PDF called "final_v3", an EPUB whose author field is the publisher.
+ * So they are a suggestion, and the reader has the last word before the book
+ * goes on the shelf.
+ */
+export async function prepareBook(path: string, format: BookFormat): Promise<PreparedBook> {
   const id = await window.api.idFor(path)
 
   const existing = (await window.api.getLibrary()).find((b) => b.id === id)
-  if (existing) return existing
+  if (existing) return { meta: existing, existing: true }
 
   const doc = await parseFile(path, format, id)
   await window.api.saveParsed(doc)
 
-  const meta: BookMeta = {
-    id,
-    path,
-    format,
-    title: doc.title,
-    author: doc.author,
-    addedAt: Date.now(),
-    lastOpenedAt: 0,
-    totalWords: totalWordsOf(doc)
+  return {
+    meta: {
+      id,
+      path,
+      format,
+      title: doc.title,
+      author: doc.author,
+      addedAt: Date.now(),
+      lastOpenedAt: 0,
+      totalWords: totalWordsOf(doc)
+    },
+    existing: false
   }
-  await window.api.upsertBook(meta)
-  return meta
 }

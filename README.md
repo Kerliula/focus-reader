@@ -8,9 +8,18 @@ there are no accounts and nothing is uploaded.
 
 ## What it does
 
+**Pages, not a scroll.** A section is typeset onto sheets of a fixed size and
+shown the way a PDF viewer shows a document: paper on a desk, a running head
+and a page number on every sheet, a page box and a zoom control in the toolbar.
+Fit the whole page in the window or fit its width; zoom scales the picture of
+the page and never moves a line break. Turning a page is `PageDown`, and the
+rail down the left fills a mark per page as you go — the section is twelve marks,
+and seven of them are lit.
+
 **Spotlight focus.** One sentence (or paragraph) is lit, the rest of the page
 dims. There is exactly one place for your eye to be, and moving on is a
-deliberate keypress rather than a drift.
+deliberate keypress rather than a drift. A sentence that runs over the foot of a
+page is lit on both sheets.
 
 **Bionic bolding.** The first few letters of every word are bolded, giving the
 eye a fixation point instead of a wall of even grey.
@@ -21,9 +30,25 @@ eye a fixation point instead of a wall of even grey.
 **Thought parking.** `⌘K` opens one field. Dump the thing that just pulled you
 away, hit Enter, carry on. The list is there when the reading is done.
 
-**Progress you can actually read.** Two bars at the bottom: how far through this
-section, and the whole book as one track with a tick per section — legible whether
-the book has four sections or four hundred. No points, no levels, no streaks.
+**You name the book.** Adding a file reads it in, then stops to ask: the title and
+author are filled in from the file, and files are wrong about both often enough —
+`final_v3.pdf`, an author field holding the publisher — that nothing goes on the
+shelf until you have looked at them and pressed Enter. Change either, or leave
+the book out after all. Books that are already on the shelf are not asked about
+again.
+
+**A shelf per subject.** Group books by what you are reading them for — a
+course, a thesis chapter, a standing interest. The library then opens as your
+subjects rather than as one long wall: each with its own heading and count, and
+whatever you have not filed gathered at the bottom under **Unfiled**. Click a
+subject to see only it; anything you add while it is open lands there. A book
+sits on one shelf, moved from the pill on its card. Dropping a subject unfiles
+its books and deletes nothing — the shelf goes, the reading stays.
+
+**Progress you can actually read.** Two bars at the bottom: which page of this
+section you are on and how far through it, and the whole book as one track with a
+tick per section — legible whether the book has four sections or four hundred.
+A page you have turned gets a tick in its folio. No points, no levels, no streaks.
 
 **Articles read like books.** Paste a link — or drop one onto the library — and the
 page is stripped down to the text: no nav, no subscribe box, no share buttons, no
@@ -72,11 +97,15 @@ npm run dist
 | --- | --- |
 | `Space` `→` `J` | Next sentence |
 | `←` `K` | Back |
+| `PageDown` `PageUp` | Next / previous page |
+| `Home` `End` | First / last page of the section |
 | `[` `]` | Previous / next section |
 | `B` | Bionic bolding |
 | `D` | Spotlight dimming |
 | `G` | Sentence ↔ paragraph |
-| `+` `−` | Text size |
+| `+` `−` | Zoom |
+| `0` | Fit the page |
+| `F` | Fit the width |
 | `T` | Sections |
 | `,` | Settings (in the library too) |
 | `N` | Your notes |
@@ -107,8 +136,10 @@ leaves the main process — the renderer only ever receives results.
 ## How it is put together
 
 - `src/main` — Electron main process: window, file dialogs, and a small JSON
-  store in `userData` (library, progress, thoughts, settings). Writes are queued
-  per file so overlapping updates can't lose each other.
+  store in `userData` (library, subjects, progress, thoughts, settings). Writes
+  are queued per file so overlapping updates can't lose each other. A subject is
+  its own record and a book carries its id, so renaming one is a single write
+  and dropping one cannot take books with it.
 - `src/preload` — the `window.api` bridge; the renderer has no Node access.
 - `src/renderer/src/parse` — EPUB (JSZip + DOMParser over the OPF spine), PDF
   (pdf.js text items regrouped into lines and paragraphs) and web articles all
@@ -123,6 +154,15 @@ leaves the main process — the renderer only ever receives results.
   together when a title is broken over several elements, as most are.
 - `src/renderer/src/lib/units.ts` — sentence splitting and unit building, pure and
   separate from the UI.
+- `src/renderer/src/lib/pages.ts` — how a section becomes pages. The text is
+  typeset once, off screen, at the width of the text block (`PageMeasurer`); every
+  line of it is read back and the lines are dealt onto sheets of a fixed height.
+  A heading is never left as the last line of a page. A sentence that straddles a
+  break is cut at the exact character the measurement finds, so each half renders
+  with the line breaks it had, and both halves light up as one unit. Each sheet
+  (`Sheet.tsx`) is laid out at its own size and scaled as a picture, which is why
+  zoom is free and never changes where a page breaks. Changing the text size or the
+  font does, and the section is measured again.
 - `src/renderer/src/lib/images.ts` — one rule for what counts as an illustration,
   shared by all three parsers: measured, filtered on its real size rather than on
   what the markup called it, and stored under the hash of its bytes so a

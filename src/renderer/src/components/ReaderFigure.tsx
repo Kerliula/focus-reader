@@ -5,8 +5,11 @@ import type { Unit } from '../lib/units'
 interface Props {
   unit: Unit
   image: BookImage
+  /** Its size on the page, decided by the layout so the page can be trusted to hold it. */
+  size: { width: number; height: number }
   isActive: boolean
   isRead: boolean
+  anchor?: boolean
   onSelect: (index: number) => void
   /** A diagram at column width is often unreadable; clicking opens it properly. */
   onOpen: (image: BookImage) => void
@@ -26,29 +29,29 @@ interface Props {
 export const ReaderFigure = memo(function ReaderFigure({
   unit,
   image,
+  size,
   isActive,
   isRead,
+  anchor = true,
   onSelect,
   onOpen,
   activeRef
 }: Props): JSX.Element {
-  const known = image.width > 0 && image.height > 0
-
   return (
     <figure className="blk blk-image">
       <span
-        ref={isActive ? activeRef : undefined}
+        ref={isActive && anchor ? activeRef : undefined}
         className={`unit unit-figure${isActive ? ' unit-active' : ''}${isRead ? ' unit-read' : ''}`}
         onClick={() => onSelect(unit.index)}
       >
         <img
           src={image.src}
           alt={image.alt}
-          // Reserve the right shape before the file arrives, so reaching a
-          // figure doesn't shove the paragraph you're reading up the page.
-          style={known ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
-          width={known ? image.width : undefined}
-          height={known ? image.height : undefined}
+          // The box is fixed before the file arrives, so a figure loading late
+          // never shoves the line you're reading down the page.
+          style={{ width: `${size.width}px`, height: `${size.height}px` }}
+          width={size.width}
+          height={size.height}
           draggable={false}
           onClick={(e) => {
             e.stopPropagation()

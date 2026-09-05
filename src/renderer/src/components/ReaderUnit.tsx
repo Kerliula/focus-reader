@@ -4,6 +4,14 @@ import { BionicText } from './BionicText'
 
 interface Props {
   unit: Unit
+  /**
+   * The words of the unit that fall on this page. A sentence cut by a page
+   * break is drawn twice, once per page; each half gets its own text and the
+   * same unit, so both light up together.
+   */
+  text?: string
+  /** Only one of a unit's halves carries the ref the reader scrolls to. */
+  anchor?: boolean
   isActive: boolean
   isRead: boolean
   bionic: boolean
@@ -20,11 +28,13 @@ const MAX_LOOKUP_WORDS = 4
 
 /**
  * One spotlight unit. Memoized because moving the spotlight re-renders the
- * chapter: without this, every word in the section is re-tokenized and
- * re-bolded on every keypress instead of just the two units that changed.
+ * page: without this, every word on it is re-tokenized and re-bolded on every
+ * keypress instead of just the two units that changed.
  */
 export const ReaderUnit = memo(function ReaderUnit({
   unit,
+  text = unit.text,
+  anchor = true,
   isActive,
   isRead,
   bionic,
@@ -35,7 +45,7 @@ export const ReaderUnit = memo(function ReaderUnit({
 }: Props): JSX.Element {
   return (
     <span
-      ref={isActive ? activeRef : undefined}
+      ref={isActive && anchor ? activeRef : undefined}
       className={`unit${isActive ? ' unit-active' : ''}${isRead ? ' unit-read' : ''}`}
       onClick={() => onSelect(unit.index)}
       onDoubleClick={() => {
@@ -50,7 +60,7 @@ export const ReaderUnit = memo(function ReaderUnit({
         onExplain(picked, unit.text, selection.getRangeAt(0).getBoundingClientRect())
       }}
     >
-      <BionicText text={unit.text} enabled={bionic} strength={bionicStrength} />{' '}
+      <BionicText text={text} enabled={bionic} strength={bionicStrength} />{' '}
     </span>
   )
 })

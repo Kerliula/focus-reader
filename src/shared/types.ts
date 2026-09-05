@@ -49,6 +49,18 @@ export interface BookDoc {
 
 export type BookFormat = 'epub' | 'pdf' | 'article'
 
+/**
+ * A shelf of one's own: books grouped by what they are for — a course, a
+ * thesis chapter, a standing interest. A book sits on at most one, because
+ * the question a subject answers is "what am I reading for this?", and an
+ * answer that lists a book under four headings is no answer.
+ */
+export interface Subject {
+  id: string
+  name: string
+  createdAt: number
+}
+
 export interface BookMeta {
   id: string
   /** A file path, or the source URL when the format is `article`. */
@@ -59,6 +71,12 @@ export interface BookMeta {
   addedAt: number
   lastOpenedAt: number
   totalWords: number
+  /**
+   * The subject this book is filed under, `null` when it is unfiled. Absent
+   * on entries written before subjects existed, and on a freshly imported
+   * book — which is why `undefined` means "unchanged" rather than "unfile it".
+   */
+  subjectId?: string | null
 }
 
 export interface Progress {
@@ -164,6 +182,14 @@ export interface KeyTestResult {
 export type Theme = 'dark' | 'sepia' | 'light'
 export type Granularity = 'sentence' | 'paragraph'
 
+/**
+ * How big a page is drawn, in the sense a PDF viewer means it: the page is
+ * typeset once at its own size, and zoom only scales the picture of it. `page`
+ * fits the whole sheet in the window, `width` fits its width, a number is a
+ * percentage.
+ */
+export type Zoom = 'page' | 'width' | number
+
 export interface Settings {
   theme: Theme
   fontFamily: string
@@ -185,6 +211,8 @@ export interface Settings {
   quizThinking: boolean
   /** Two lines of orientation at the top of each new section. */
   sectionPreview: boolean
+  /** How the sheets are scaled to the window. */
+  zoom: Zoom
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -202,5 +230,6 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
   quizAfterSection: true,
   quizThinking: true,
-  sectionPreview: true
+  sectionPreview: true,
+  zoom: 'page'
 }
