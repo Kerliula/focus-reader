@@ -26,7 +26,7 @@ interface Props {
   onOpenWords: () => void
   wordCount: number
   onOpenSettings: () => void
-  /** False until a DeepSeek key is in place; the AI extras stay off till then. */
+  /** False until an OpenRouter key is in place; the AI extras stay off till then. */
   aiReady: boolean
   onAddKey: () => void
 }
@@ -328,7 +328,7 @@ export function Library({
             <strong>Word lookups, previews and quizzes are off.</strong>
             <span className="muted">
               {' '}
-              They ask DeepSeek, so they need an API key. Everything else already works.
+              They ask a language model through OpenRouter, so they need an API key. Everything else already works.
             </span>
           </div>
           <button className="ghost boxed" onClick={onAddKey}>

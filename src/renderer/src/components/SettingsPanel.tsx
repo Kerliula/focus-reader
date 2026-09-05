@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { AiKeyStatus, KeyTestResult, Settings, Theme } from '../../../shared/types'
+import type { AiKeyStatus, AiModel, Effort, KeyTestResult, Settings, Theme } from '../../../shared/types'
+import { ModelPicker } from './ModelPicker'
 
 interface Props {
   settings: Settings
@@ -9,7 +10,8 @@ interface Props {
   focusApiKey?: boolean
 }
 
-const KEY_PAGE = 'https://platform.deepseek.com/api_keys'
+const KEY_PAGE = 'https://openrouter.ai/keys'
+const MODELS_PAGE = 'https://openrouter.ai/models'
 
 const FONTS: { label: string; value: string }[] = [
   { label: 'Serif (Georgia)', value: 'Georgia, "Iowan Old Style", "Times New Roman", serif' },
@@ -20,6 +22,7 @@ const FONTS: { label: string; value: string }[] = [
 ]
 
 const THEMES: Theme[] = ['dark', 'sepia', 'light']
+const EFFORTS: Effort[] = ['off', 'low', 'medium', 'high']
 
 function Row({
   label,
@@ -52,6 +55,7 @@ export function SettingsPanel({
   const [testing, setTesting] = useState(false)
   const [result, setResult] = useState<KeyTestResult | null>(null)
   const keyInput = useRef<HTMLInputElement>(null)
+  const [models, setModels] = useState<AiModel[] | null>(null)
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]): void =>
     onChange({ ...settings, [key]: value })
@@ -60,6 +64,23 @@ export function SettingsPanel({
   // saved key is whatever is in the box.
   useEffect(() => {
     void window.api.aiKeyStatus().then(setStatus)
+  }, [])
+
+  // The catalogue is public, so it comes whether or not there is a key yet.
+  useEffect(() => {
+    let cancelled = false
+    void window.api
+      .listModels()
+      .then((list) => {
+        if (!cancelled) setModels(list)
+      })
+      .catch(() => {
+        // The picker still takes a typed id; it just cannot suggest any.
+        if (!cancelled) setModels([])
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Arriving from "add a key" should land the cursor in the box, not leave the
@@ -95,7 +116,7 @@ export function SettingsPanel({
   }
 
   const statusLine = status?.fromEnv
-    ? 'Using DEEPSEEK_API_KEY from your environment — it overrides anything typed here.'
+    ? 'Using OPENROUTER_API_KEY from your environment — it overrides anything typed here.'
     : settings.apiKey.trim() !== ''
       ? 'Saved. Check it here if lookups aren’t coming back.'
       : 'No key yet — lookups, previews and quizzes stay off until there is one.'
@@ -244,21 +265,25 @@ export function SettingsPanel({
 
           <h3 className="setting-section">Word lookups, previews and quizzes</h3>
           <p className="setting-note">
-            These three ask DeepSeek, so they need a key of your own. Everything else in
-            Focus Reader works without one. Get a key at{' '}
+            These three ask a language model, through{' '}
+            <a href="https://openrouter.ai" target="_blank" rel="noreferrer">
+              OpenRouter
+            </a>
+            , so they need a key of your own — and you choose which model answers. Everything
+            else in Focus Reader works without one. Get a key at{' '}
             <a href={KEY_PAGE} target="_blank" rel="noreferrer">
-              platform.deepseek.com
+              openrouter.ai/keys
             </a>
             , then paste it below.
           </p>
 
-          <Row label="DeepSeek API key" hint="stays on this machine">
+          <Row label="OpenRouter API key" hint="stays on this machine">
             <div className="key-input">
               <input
                 ref={keyInput}
                 type={showKey ? 'text' : 'password'}
                 value={settings.apiKey}
-                placeholder="sk-…"
+                placeholder="sk-or-…"
                 autoComplete="off"
                 spellCheck={false}
                 onChange={(e) => set('apiKey', e.target.value.trim())}
@@ -288,6 +313,47 @@ export function SettingsPanel({
             </span>
           </div>
 
+          <Row label="Model" hint="for lookups and previews">
+            <ModelPicker
+              value={settings.model}
+              onChange={(id) => set('model', id)}
+              models={models}
+              placeholder="Type to search — or paste any OpenRouter model id"
+            />
+          </Row>
+
+          <Row label="Quiz model" hint="optional — a slower, stronger one for the questions">
+            <ModelPicker
+              value={settings.quizModel}
+              onChange={(id) => set('quizModel', id)}
+              models={models}
+              placeholder="Same as above"
+            />
+          </Row>
+
+          <Row label="Quiz effort" hint="thinking time: sharper, slower">
+            <div className="segmented">
+              {EFFORTS.map((effort) => (
+                <button
+                  key={effort}
+                  className={settings.quizEffort === effort ? 'seg on' : 'seg'}
+                  onClick={() => set('quizEffort', effort)}
+                >
+                  {effort}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          <p className="setting-note">
+            Prices are per million tokens, as{' '}
+            <a href={MODELS_PAGE} target="_blank" rel="noreferrer">
+              openrouter.ai/models
+            </a>{' '}
+            lists them. A word lookup is a few hundred tokens; a quiz on a long section is ten
+            to twenty thousand.
+          </p>
+
           <Row
             label="Two lines before each section"
             hint="where it's going — never how it ends"
@@ -306,19 +372,6 @@ export function SettingsPanel({
               onChange={(e) => set('quizAfterSection', e.target.checked)}
             />
           </Row>
-
-          {settings.quizAfterSection && (
-            <Row
-              label="Think harder about the questions"
-              hint="sharper, but ~90s instead of ~12s — usually ready before you finish the section"
-            >
-              <input
-                type="checkbox"
-                checked={settings.quizThinking}
-                onChange={(e) => set('quizThinking', e.target.checked)}
-              />
-            </Row>
-          )}
 
           <div className="shortcuts">
             <h3>Keys</h3>

@@ -16,6 +16,7 @@ import {
   aiAvailable,
   aiKeyStatus,
   explainWord,
+  listModels,
   makePreview,
   makeQuiz,
   prefetchPreview,
@@ -277,8 +278,9 @@ function registerIpc(): void {
   // never decides what you read.
   ipcMain.handle('ai:available', () => aiAvailable())
   ipcMain.handle('ai:keyStatus', () => aiKeyStatus())
-  // The key itself never comes back out — only whether DeepSeek accepted it.
+  // The key itself never comes back out — only whether OpenRouter accepted it.
   ipcMain.handle('ai:testKey', (_e, candidate?: string) => testKey(candidate))
+  ipcMain.handle('ai:models', () => listModels())
   ipcMain.handle('ai:quiz', (_e, title: string, text: string) => makeQuiz(title, text))
   // Returns at once: the generation carries on in the background.
   ipcMain.handle('ai:prefetchQuiz', (_e, title: string, text: string) => {

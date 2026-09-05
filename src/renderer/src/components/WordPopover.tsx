@@ -86,7 +86,7 @@ export function WordPopover({
 
       {!aiReady ? (
         <p className="muted">
-          Add a DeepSeek key in Settings (,) and you can look up any word from here.
+          Add an OpenRouter key in Settings (,) and you can look up any word from here.
         </p>
       ) : error !== '' ? (
         <>

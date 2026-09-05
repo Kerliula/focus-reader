@@ -169,18 +169,39 @@ export interface Note {
 /** Whether the AI features have a key to work with, and where it came from. */
 export interface AiKeyStatus {
   hasKey: boolean
-  /** DEEPSEEK_API_KEY was set in the environment — it overrides the saved key. */
+  /** OPENROUTER_API_KEY was set in the environment — it overrides the saved key. */
   fromEnv: boolean
 }
 
-/** The result of checking a key against DeepSeek, in words fit to show. */
+/** The result of checking a key against OpenRouter, in words fit to show. */
 export interface KeyTestResult {
   ok: boolean
   message: string
 }
 
+/** One model OpenRouter offers, trimmed to what the picker shows. */
+export interface AiModel {
+  /** The id sent with a request: "anthropic/claude-sonnet-4", say. */
+  id: string
+  name: string
+  /** Dollars per million tokens, in and out. 0 for free models, -1 when unknown. */
+  promptPrice: number
+  completionPrice: number
+  /** Context window, in tokens. 0 when unknown. */
+  context: number
+  /** Takes a reasoning effort — the quiz can ask it to think. */
+  reasoning: boolean
+}
+
 export type Theme = 'dark' | 'sepia' | 'light'
 export type Granularity = 'sentence' | 'paragraph'
+
+/**
+ * How hard the model is asked to think before it writes the quiz — OpenRouter's
+ * reasoning effort. `off` sends nothing and leaves the model to its defaults;
+ * a model that cannot reason ignores the rest.
+ */
+export type Effort = 'off' | 'low' | 'medium' | 'high'
 
 /**
  * How big a page is drawn, in the sense a PDF viewer means it: the page is
@@ -203,12 +224,19 @@ export interface Settings {
   granularity: Granularity
   /** Target words per minute — used only for the time-left estimate. */
   wpm: number
-  /** DeepSeek key. Lives in userData, never in the repo. */
+  /** OpenRouter key. Lives in userData, never in the repo. */
   apiKey: string
+  /** The OpenRouter model id everything is asked of. */
+  model: string
+  /**
+   * A model for the quiz alone, when the questions deserve a slower or
+   * stronger one than the word lookups. Empty means the same as `model`.
+   */
+  quizModel: string
+  /** How much reasoning the quiz is given. Lookups and previews stay quick. */
+  quizEffort: Effort
   /** Quiz + summary at the end of every section. */
   quizAfterSection: boolean
-  /** Use DeepSeek's thinking mode for the questions: sharper, far slower. */
-  quizThinking: boolean
   /** Two lines of orientation at the top of each new section. */
   sectionPreview: boolean
   /** How the sheets are scaled to the window. */
@@ -228,8 +256,10 @@ export const DEFAULT_SETTINGS: Settings = {
   granularity: 'sentence',
   wpm: 220,
   apiKey: '',
+  model: 'openai/gpt-4o-mini',
+  quizModel: '',
+  quizEffort: 'medium',
   quizAfterSection: true,
-  quizThinking: true,
   sectionPreview: true,
   zoom: 'page'
 }

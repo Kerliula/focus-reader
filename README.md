@@ -113,25 +113,37 @@ npm run dist
 | Click a figure | Open it full size (`Esc` closes) |
 | `Esc` | Back to library |
 
-## DeepSeek
+## OpenRouter
 
-Three things call the DeepSeek API: the two-line section preview, the double-click
-word explanation, and the end-of-section quiz. They stay off until there is a key,
-and the library says so with an **Add a key** button; without one the app works
-exactly the same, minus those three.
+Three things ask a language model: the two-line section preview, the double-click
+word explanation, and the end-of-section quiz. They go through
+[OpenRouter](https://openrouter.ai), which puts every major model behind one key,
+and they stay off until there is a key — the library says so with an **Add a key**
+button; without one the app works exactly the same, minus those three.
 
-Get a key at [platform.deepseek.com](https://platform.deepseek.com/api_keys), then
-open **Settings** — the ⚙ button in the library bar, or `,` from anywhere — and
-paste it in. **Check key** asks DeepSeek whether it works, so you find out there
-rather than mid-section. Setting `DEEPSEEK_API_KEY` in the environment works too,
-and overrides the saved one.
+Get a key at [openrouter.ai/keys](https://openrouter.ai/keys), then open
+**Settings** — the ⚙ button in the library bar, or `,` from anywhere — and paste it
+in. **Check key** asks OpenRouter whether it works and what credit is left, so you
+find out there rather than mid-section. Setting `OPENROUTER_API_KEY` in the
+environment works too, and overrides the saved one.
+
+You choose the model. The **Model** box searches OpenRouter's catalogue by name or
+id, with the price per million tokens beside each, and takes any id typed into it
+whether it is listed or not. A second box, **Quiz model**, is optional: the quiz is
+the one call where a slower, stronger model earns its keep, so it can be sent to
+one while the word lookups you wait on mid-sentence stay with something quick.
+Left empty, the quiz uses the same model as everything else. **Quiz effort** sets
+how long that model thinks before it writes the questions — off, low, medium or
+high — for models that can reason; the others ignore it. Word lookups and
+previews are never asked to think, because you are waiting on them mid-sentence.
 
 The model reads a section in order to ask questions about it. It never decides what
 you read, never edits or reorders text, and nothing it returns is written back into
 the book. One call per section, only when you reach the end of one.
 
 The key is stored in `settings.json` under the app's own data directory and never
-leaves the main process — the renderer only ever receives results.
+leaves the main process — the renderer only ever receives results. The model list
+is fetched from OpenRouter once per session, with the key if there is one.
 
 ## How it is put together
 
