@@ -30,6 +30,13 @@ eye a fixation point instead of a wall of even grey.
 **Thought parking.** `⌘K` opens one field. Dump the thing that just pulled you
 away, hit Enter, carry on. The list is there when the reading is done.
 
+**You name the book.** Adding a file reads it in, then stops to ask: the title and
+author are filled in from the file, and files are wrong about both often enough —
+`final_v3.pdf`, an author field holding the publisher — that nothing goes on the
+shelf until you have looked at them and pressed Enter. Change either, or leave
+the book out after all. Books that are already on the shelf are not asked about
+again.
+
 **A shelf per subject.** Group books by what you are reading them for — a
 course, a thesis chapter, a standing interest. The library then opens as your
 subjects rather than as one long wall: each with its own heading and count, and

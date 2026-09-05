@@ -1677,6 +1677,70 @@ kbd {
   border-color: var(--accent);
 }
 
+/* ---------- naming a new book ---------- */
+
+.book-details {
+  position: fixed;
+  z-index: 21;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 90vw);
+  padding: 24px 26px 22px;
+  border-radius: 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.book-details-source {
+  margin: -6px 0 16px;
+  font-size: 12.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.book-details-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.book-details-field span {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.book-details-field input {
+  width: 100%;
+  font-size: 17px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+}
+
+.book-details-field input:focus {
+  border-color: var(--accent);
+}
+
+.book-details-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.book-details-actions {
+  justify-content: flex-end;
+}
+
 /* ---------- quiz ---------- */
 
 .quiz {

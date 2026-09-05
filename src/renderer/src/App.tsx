@@ -10,7 +10,8 @@ import type {
   Thought
 } from '../../shared/types'
 import { DEFAULT_SETTINGS } from '../../shared/types'
-import { importBook, loadBook } from './lib/loadBook'
+import { loadBook, prepareBook } from './lib/loadBook'
+import { BookDetails } from './components/BookDetails'
 import { Library } from './components/Library'
 import { Reader } from './components/Reader'
 import { ThoughtPanel } from './components/ThoughtPanel'
@@ -36,6 +37,11 @@ export default function App(): JSX.Element {
   const [showWords, setShowWords] = useState(false)
   const [aiReady, setAiReady] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState<false | 'plain' | 'apiKey'>(false)
+  /**
+   * Books read in and waiting to be named. Nothing reaches the shelf until its
+   * title and author have been looked at and submitted, one book at a time.
+   */
+  const [pending, setPending] = useState<{ meta: BookMeta; subjectId: string | null }[]>([])
 
   useEffect(() => {
     void (async () => {
@@ -162,14 +168,15 @@ export default function App(): JSX.Element {
       }
       setBusy(`Reading ${path.split('/').pop()}…`)
       try {
-        const meta = await importBook(path, format)
-        // Added while a subject was on screen: that is where it was meant to go.
-        if (subjectId) await window.api.setBookSubject(meta.id, subjectId)
+        const prepared = await prepareBook(path, format)
+        // Already on the shelf: there is nothing to name.
+        if (!prepared.existing) {
+          setPending((queue) => [...queue, { meta: prepared.meta, subjectId }])
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
     }
-    setBooks(await window.api.getLibrary())
     setBusy(null)
   }, [])
 
@@ -187,15 +194,34 @@ export default function App(): JSX.Element {
     const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`
     setBusy(`Fetching ${new URL(url).hostname}…`)
     try {
-      const meta = await importBook(url, 'article')
-      if (subjectId) await window.api.setBookSubject(meta.id, subjectId)
-      setBooks(await window.api.getLibrary())
+      const prepared = await prepareBook(url, 'article')
+      if (!prepared.existing) {
+        setPending((queue) => [...queue, { meta: prepared.meta, subjectId }])
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(null)
     }
   }, [])
+
+  /** The name has been agreed on: the book goes on the shelf under it. */
+  const confirmBook = useCallback(async (title: string, author: string) => {
+    const [head, ...rest] = pending
+    if (!head) return
+    setPending(rest)
+    // Added while a subject was on screen: that is where it was meant to go.
+    const meta: BookMeta = { ...head.meta, title, author, subjectId: head.subjectId }
+    setBooks(await window.api.upsertBook(meta))
+  }, [pending])
+
+  /** Left out after all. The text read in for it is dropped with it. */
+  const discardBook = useCallback(async () => {
+    const [head, ...rest] = pending
+    if (!head) return
+    setPending(rest)
+    await window.api.removeBook(head.meta.id)
+  }, [pending])
 
   const createSubject = useCallback(async (name: string): Promise<Subject> => {
     const { subjects: next, subject } = await window.api.addSubject(name)
@@ -313,6 +339,15 @@ export default function App(): JSX.Element {
         aiReady={aiReady}
         onAddKey={() => setSettingsOpen('apiKey')}
       />
+      {pending.length > 0 && (
+        <BookDetails
+          key={pending[0].meta.id}
+          draft={pending[0].meta}
+          queued={pending.length - 1}
+          onSubmit={(title, author) => void confirmBook(title, author)}
+          onCancel={() => void discardBook()}
+        />
+      )}
       {settingsOpen !== false && (
         <SettingsPanel
           settings={settings}
