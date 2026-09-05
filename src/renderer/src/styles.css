@@ -292,6 +292,8 @@ kbd {
 
 .book-pct {
   font-size: 12px;
+  /* The subject pill sits in this corner. */
+  padding-right: 96px;
 }
 
 .remove {
@@ -321,6 +323,229 @@ kbd {
   text-align: center;
   color: var(--accent);
   pointer-events: none;
+}
+
+/* ---------- subjects ---------- */
+
+/* The shelf you are standing at. Always visible, even with no subjects yet —
+   it is how the grouping is found in the first place. */
+.subject-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 13px;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.chip-count {
+  font-size: 11px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.new {
+  border-style: dashed;
+}
+
+.chip-input {
+  width: 170px;
+  padding: 6px 13px;
+  border-radius: 99px;
+  border: 1px solid var(--accent);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.subject-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.subject-head h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.subject-rename {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 19px;
+  font-weight: 700;
+  outline: none;
+}
+
+.subject-head-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Asked once and waiting for the second click. */
+.subject-head-actions .armed {
+  color: #e59182;
+}
+
+.shelf-group {
+  margin-bottom: 30px;
+}
+
+.shelf-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.shelf-heading button {
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  transition: color 0.15s ease;
+}
+
+.shelf-heading button:hover {
+  color: var(--accent);
+}
+
+/* Sits in the card's empty bottom-right corner, and stays out of the way until
+   you are on the card — like the remove button. Which shelf a book is on is
+   already said by the heading above it or the chip you clicked to get here, so
+   this is a control rather than a label, and a label repeated three times to a
+   row is just noise. */
+.subject-pill {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  max-width: 58%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  color: var(--text-dim);
+  font-size: 11px;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.shelf li:hover .subject-pill,
+.subject-pill:focus-visible,
+.subject-pill.open {
+  opacity: 1;
+}
+
+.subject-pill:hover,
+.subject-pill.open {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Opens upward, over its own card: the pill is at the bottom of one. */
+.subject-menu {
+  position: absolute;
+  right: 12px;
+  bottom: 38px;
+  z-index: 8;
+  min-width: 196px;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.subject-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.subject-menu button:hover {
+  background: var(--bg-sunk);
+}
+
+.subject-menu .tick {
+  flex: none;
+  width: 12px;
+  color: var(--accent);
+}
+
+.subject-menu-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.subject-menu hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 6px 4px;
+}
+
+.subject-menu input {
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg-sunk);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
 }
 
 /* ---------- reader ---------- */

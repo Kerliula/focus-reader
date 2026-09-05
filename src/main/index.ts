@@ -245,6 +245,14 @@ function registerIpc(): void {
   ipcMain.handle('library:get', () => store.getLibrary())
   ipcMain.handle('library:upsert', (_e, meta: BookMeta) => store.upsertBook(meta))
   ipcMain.handle('library:remove', (_e, id: string) => store.removeBook(id))
+  ipcMain.handle('library:setSubject', (_e, bookId: string, subjectId: string | null) =>
+    store.setBookSubject(bookId, subjectId)
+  )
+
+  ipcMain.handle('subjects:get', () => store.getSubjects())
+  ipcMain.handle('subjects:add', (_e, name: string) => store.addSubject(name))
+  ipcMain.handle('subjects:rename', (_e, id: string, name: string) => store.renameSubject(id, name))
+  ipcMain.handle('subjects:remove', (_e, id: string) => store.removeSubject(id))
 
   ipcMain.handle('progress:get', (_e, id: string) => store.getProgress(id))
   ipcMain.handle('progress:getAll', () => store.getAllProgress())

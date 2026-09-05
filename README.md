@@ -21,6 +21,14 @@ eye a fixation point instead of a wall of even grey.
 **Thought parking.** `⌘K` opens one field. Dump the thing that just pulled you
 away, hit Enter, carry on. The list is there when the reading is done.
 
+**A shelf per subject.** Group books by what you are reading them for — a
+course, a thesis chapter, a standing interest. The library then opens as your
+subjects rather than as one long wall: each with its own heading and count, and
+whatever you have not filed gathered at the bottom under **Unfiled**. Click a
+subject to see only it; anything you add while it is open lands there. A book
+sits on one shelf, moved from the pill on its card. Dropping a subject unfiles
+its books and deletes nothing — the shelf goes, the reading stays.
+
 **Progress you can actually read.** Two bars at the bottom: how far through this
 section, and the whole book as one track with a tick per section — legible whether
 the book has four sections or four hundred. No points, no levels, no streaks.
@@ -107,8 +115,10 @@ leaves the main process — the renderer only ever receives results.
 ## How it is put together
 
 - `src/main` — Electron main process: window, file dialogs, and a small JSON
-  store in `userData` (library, progress, thoughts, settings). Writes are queued
-  per file so overlapping updates can't lose each other.
+  store in `userData` (library, subjects, progress, thoughts, settings). Writes
+  are queued per file so overlapping updates can't lose each other. A subject is
+  its own record and a book carries its id, so renaming one is a single write
+  and dropping one cannot take books with it.
 - `src/preload` — the `window.api` bridge; the renderer has no Node access.
 - `src/renderer/src/parse` — EPUB (JSZip + DOMParser over the OPF spine), PDF
   (pdf.js text items regrouped into lines and paragraphs) and web articles all

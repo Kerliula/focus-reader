@@ -10,6 +10,7 @@ import type {
   SavedWord,
   SectionPreview,
   Settings,
+  Subject,
   Thought,
   WordExplanation
 } from '../shared/types'
@@ -41,6 +42,19 @@ const api = {
   getLibrary: (): Promise<BookMeta[]> => ipcRenderer.invoke('library:get'),
   upsertBook: (meta: BookMeta): Promise<BookMeta[]> => ipcRenderer.invoke('library:upsert', meta),
   removeBook: (id: string): Promise<BookMeta[]> => ipcRenderer.invoke('library:remove', id),
+  /** File a book under a subject, or `null` to take it off the shelf it is on. */
+  setBookSubject: (bookId: string, subjectId: string | null): Promise<BookMeta[]> =>
+    ipcRenderer.invoke('library:setSubject', bookId, subjectId),
+
+  getSubjects: (): Promise<Subject[]> => ipcRenderer.invoke('subjects:get'),
+  /** Returns the subject as well as the list — a name already taken gives back that one. */
+  addSubject: (name: string): Promise<{ subjects: Subject[]; subject: Subject }> =>
+    ipcRenderer.invoke('subjects:add', name),
+  renameSubject: (id: string, name: string): Promise<Subject[]> =>
+    ipcRenderer.invoke('subjects:rename', id, name),
+  /** Drops the shelf and unfiles its books; nothing is deleted. */
+  removeSubject: (id: string): Promise<{ subjects: Subject[]; library: BookMeta[] }> =>
+    ipcRenderer.invoke('subjects:remove', id),
 
   getProgress: (id: string): Promise<Progress | null> => ipcRenderer.invoke('progress:get', id),
   getAllProgress: (): Promise<Record<string, Progress>> => ipcRenderer.invoke('progress:getAll'),

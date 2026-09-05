@@ -6,6 +6,7 @@ import type {
   Progress,
   SavedWord,
   Settings,
+  Subject,
   Thought
 } from '../../shared/types'
 import { DEFAULT_SETTINGS } from '../../shared/types'
@@ -22,6 +23,7 @@ type View = { name: 'library' } | { name: 'reader'; meta: BookMeta; doc: BookDoc
 export default function App(): JSX.Element {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [books, setBooks] = useState<BookMeta[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const [progress, setProgress] = useState<Record<string, Progress>>({})
   const [thoughts, setThoughts] = useState<Thought[]>([])
   const [view, setView] = useState<View>({ name: 'library' })
@@ -37,18 +39,28 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     void (async () => {
-      const [loadedSettings, library, allProgress, savedThoughts, savedNotes, savedWords, ai] =
-        await Promise.all([
-          window.api.getSettings(),
-          window.api.getLibrary(),
-          window.api.getAllProgress(),
-          window.api.getThoughts(),
-          window.api.getNotes(),
-          window.api.getWords(),
-          window.api.aiAvailable()
-        ])
+      const [
+        loadedSettings,
+        library,
+        savedSubjects,
+        allProgress,
+        savedThoughts,
+        savedNotes,
+        savedWords,
+        ai
+      ] = await Promise.all([
+        window.api.getSettings(),
+        window.api.getLibrary(),
+        window.api.getSubjects(),
+        window.api.getAllProgress(),
+        window.api.getThoughts(),
+        window.api.getNotes(),
+        window.api.getWords(),
+        window.api.aiAvailable()
+      ])
       setSettings(loadedSettings)
       setBooks(library)
+      setSubjects(savedSubjects)
       setProgress(allProgress)
       setThoughts(savedThoughts)
       setNotes(savedNotes)
@@ -140,7 +152,7 @@ export default function App(): JSX.Element {
     void window.api.deleteWord(id).then(setWords)
   }, [])
 
-  const addPaths = useCallback(async (paths: string[]) => {
+  const addPaths = useCallback(async (paths: string[], subjectId: string | null) => {
     setError(null)
     for (const path of paths) {
       const format = await window.api.formatFor(path)
@@ -150,7 +162,9 @@ export default function App(): JSX.Element {
       }
       setBusy(`Reading ${path.split('/').pop()}…`)
       try {
-        await importBook(path, format)
+        const meta = await importBook(path, format)
+        // Added while a subject was on screen: that is where it was meant to go.
+        if (subjectId) await window.api.setBookSubject(meta.id, subjectId)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
@@ -159,24 +173,49 @@ export default function App(): JSX.Element {
     setBusy(null)
   }, [])
 
-  const addBooks = useCallback(async () => {
-    const picked = await window.api.openBooks()
-    if (picked.length > 0) await addPaths(picked.map((p) => p.path))
-  }, [addPaths])
+  const addBooks = useCallback(
+    async (subjectId: string | null) => {
+      const picked = await window.api.openBooks()
+      if (picked.length > 0) await addPaths(picked.map((p) => p.path), subjectId)
+    },
+    [addPaths]
+  )
 
-  const addArticle = useCallback(async (rawUrl: string) => {
+  const addArticle = useCallback(async (rawUrl: string, subjectId: string | null) => {
     setError(null)
     // Pasting a bare "example.com/post" is the common case, not a typo.
     const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`
     setBusy(`Fetching ${new URL(url).hostname}…`)
     try {
-      await importBook(url, 'article')
+      const meta = await importBook(url, 'article')
+      if (subjectId) await window.api.setBookSubject(meta.id, subjectId)
       setBooks(await window.api.getLibrary())
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(null)
     }
+  }, [])
+
+  const createSubject = useCallback(async (name: string): Promise<Subject> => {
+    const { subjects: next, subject } = await window.api.addSubject(name)
+    setSubjects(next)
+    return subject
+  }, [])
+
+  const renameSubject = useCallback((id: string, name: string) => {
+    void window.api.renameSubject(id, name).then(setSubjects)
+  }, [])
+
+  // The books survive it — they just come back off the shelf.
+  const deleteSubject = useCallback(async (id: string) => {
+    const { subjects: next, library } = await window.api.removeSubject(id)
+    setSubjects(next)
+    setBooks(library)
+  }, [])
+
+  const setBookSubject = useCallback((bookId: string, subjectId: string | null) => {
+    void window.api.setBookSubject(bookId, subjectId).then(setBooks)
   }, [])
 
   const openBook = useCallback(async (meta: BookMeta) => {
@@ -251,14 +290,19 @@ export default function App(): JSX.Element {
     <>
       <Library
         books={books}
+        subjects={subjects}
         progress={progress}
         busy={busy}
         error={error}
         onOpen={(meta) => void openBook(meta)}
-        onAdd={() => void addBooks()}
-        onAddPaths={(paths) => void addPaths(paths)}
-        onAddUrl={(url) => void addArticle(url)}
+        onAdd={(subjectId) => void addBooks(subjectId)}
+        onAddPaths={(paths, subjectId) => void addPaths(paths, subjectId)}
+        onAddUrl={(url, subjectId) => void addArticle(url, subjectId)}
         onRemove={(id) => void removeBook(id)}
+        onCreateSubject={createSubject}
+        onRenameSubject={renameSubject}
+        onDeleteSubject={(id) => void deleteSubject(id)}
+        onSetSubject={setBookSubject}
         onOpenThoughts={() => setShowThoughts(true)}
         openThoughtCount={openThoughtCount}
         onOpenNotes={() => setShowNotes(true)}
